@@ -29,7 +29,8 @@ export default function Login() {
     };
 
     const handleSocialLogin = (service: string) => {
-        window.location.href = `http://localhost:5000/auth/${service.toLowerCase()}`;
+        const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        window.location.href = `${baseURL}/auth/${service.toLowerCase()}`;
     };
 
     return (
