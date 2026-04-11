@@ -62,4 +62,4 @@ app.get("/test", (req, res) => {
 app.use(require('./middleware/error'));
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`CreatorsHQ Ultimate running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server running on ${PORT}`));
