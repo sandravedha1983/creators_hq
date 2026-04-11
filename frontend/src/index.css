@@ -1,0 +1,123 @@
+/* --- CreatorHQ Global SaaS Design System --- */
+:root {
+  --bg-base: #0B0F1A;
+  --bg-card: #1e1e2f;
+  --bg-item: #252538;
+  --primary: #8b5cf6;
+  --text-main: #F8FAFC;
+  --text-muted: #94A3B8;
+  --border-main: rgba(255, 255, 255, 0.08);
+  --shadow-main: 0 30px 70px -15px rgba(0, 0, 0, 0.9);
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: var(--bg-base);
+    color: var(--text-main);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-white/5 rounded-full hover:bg-white/10 transition-colors;
+}
+
+@layer components {
+  /* High-Purity Solid UI Standard (Zero Blur) */
+  .card-solid {
+    @apply bg-dark-navy border border-white/[0.05] shadow-premium rounded-3xl transition-all duration-300;
+  }
+
+  .heavenly-glow {
+    @apply shadow-[0_10px_30px_-5px_rgba(0,0,0,0.3)] transition-shadow duration-500;
+  }
+
+  /* Animations */
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .hover-elevate {
+    @apply transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_15px_30px_-10px_rgba(139,92,246,0.15)];
+  }
+
+  .btn-heavenly {
+    @apply relative px-6 py-2.5 rounded-xl font-medium transition-all duration-300
+           bg-button-gradient shadow-soft-glow hover:brightness-110 active:scale-95
+           disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden;
+  }
+
+  .btn-heavenly::after {
+    content: '';
+    @apply absolute inset-0 bg-white/10 opacity-0 transition-opacity duration-300;
+  }
+
+  .btn-heavenly:hover::after {
+    @apply opacity-100;
+  }
+}
+
+/* Noise Texture Overlay */
+.bg-noise {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.012;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3BaseFilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+/* Page Signatures (Unique background identity per route) */
+.dashboard-page { background: radial-gradient(at 0% 0%, #0B0F1A 0%, transparent 60%), radial-gradient(at 100% 100%, #1a1a2e 0%, transparent 60%), #0B0F1A; }
+.crm-page { 
+  background-color: #0B0F1A;
+  background-image: linear-gradient(var(--border-main) 1px, transparent 1px), linear-gradient(90deg, var(--border-main) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+.content-page { background: radial-gradient(circle at 10% 20%, rgba(139, 92, 246, 0.05) 0%, transparent 40%), radial-gradient(circle at 90% 80%, rgba(56, 189, 248, 0.05) 0%, transparent 40%), #0B0F1A; }
+.marketplace-page { background: radial-gradient(circle at 50% 50%, #15152a 0%, #0B0F1A 100%); }
+.billing-page { background: linear-gradient(135deg, #0B0F1A 0%, #0d0d15 100%), repeating-linear-gradient(45deg, rgba(218, 165, 32, 0.005) 0px, transparent 20px); }
+.analytics-page { background-image: radial-gradient(var(--border-main) 1px, transparent 1px); background-size: 30px 30px; background-color: #0B0F1A; }
+
+/* PROJECT-WIDE SOLID VISIBILITY FIX */
+.dashboard-layout .bg-card,
+.dashboard-layout .bg-sidebar,
+.dashboard-layout .bg-header,
+.dashboard-layout .card-solid,
+.dashboard-layout [class*="bg-white/"],
+.dashboard-layout [class*="backdrop-blur"] {
+  background-color: #111827 !important; /* Force Solid Navy Visibility */
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important; /* High Contrast Borders */
+  box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 1) !important; /* Deep Shadows */
+  opacity: 1 !important;
+}
+
+.dashboard-layout .text-heaven-muted {
+  color: #F8FAFC !important;
+  opacity: 1 !important;
+}
+
+.dashboard-layout .shadow-glass {
+  box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 1) !important;
+}
