@@ -15,22 +15,33 @@ export default function Integrations() {
     const { integrations, toggleIntegration } = useAppContext();
     const [isSyncing, setIsSyncing] = useState<string | null>(null);
 
-    const handleToggle = (id: string, name: string, isConnected: boolean) => {
+    const handleToggle = async (id: string, name: string, isConnected: boolean) => {
         setIsSyncing(id);
         
-        const promise = new Promise((resolve) => {
-            setTimeout(() => {
-                toggleIntegration(id);
-                setIsSyncing(null);
-                resolve(true);
-            }, 1500);
-        });
+        try {
+            const API_URL = import.meta.env.VITE_API_URL;
+            const response = await fetch(`${API_URL}/api/integrations/connect`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ platform: name.toLowerCase() })
+            });
 
-        toast.promise(promise, {
-            loading: `Connecting to ${name}...`,
-            success: `${name} ${isConnected ? 'Disconnected' : 'Connected Successfully'}`,
-            error: `Failed to link ${name}.`,
-        });
+            const data = await response.json();
+
+            if (data.success) {
+                await toggleIntegration(id);
+                toast.success(`${name} ${isConnected ? 'Disconnected' : 'Connected Successfully'}`);
+            } else {
+                throw new Error(data.message || "Connection failed");
+            }
+        } catch (error) {
+            console.error(`Failed to link ${name}:`, error);
+            toast.error(`Failed to link ${name}. Check your connection.`);
+        } finally {
+            setIsSyncing(null);
+        }
     };
 
     const getIcon = (name: string) => {

@@ -52,14 +52,21 @@ export default function Dashboard() {
 
     // Map API stats to display stats
     const stats = statsData ? [
-        { label: 'Active Collaborations', value: statsData.activeCollaborations.toString(), growth: statsData.activeGrowth, subtext: 'Running projects' },
-        { label: 'Pending Requests', value: statsData.pendingRequests.toString(), growth: statsData.pendingGrowth, subtext: 'Awaiting review' },
-        { label: 'Total Earnings', value: `₹${(statsData.totalEarnings * 80).toLocaleString()}`, growth: statsData.earningsGrowth, subtext: 'Lifetime revenue' },
-        { label: 'Completed', value: statsData.completedCollaborations.toString(), growth: statsData.completedGrowth, subtext: 'Finished projects' }
+        { label: 'Total Followers', value: statsData.followers.toLocaleString(), growth: '+12%', subtext: 'Social reach' },
+        { label: 'Engagement Rate', value: `${statsData.engagement}%`, growth: '+5%', subtext: 'Interaction score' },
+        { label: 'Total Earnings', value: `₹${(statsData.earnings * 80).toLocaleString()}`, growth: '+24%', subtext: 'Monthly revenue' },
+        { label: 'Growth Score', value: statsData.growthScore.toString(), growth: '+18%', subtext: 'Platform momentum' }
     ] : [];
 
-    const topContent: any[] = [];
-    const recentLeads: any[] = [];
+    useEffect(() => {
+        // Step 1: Confirm Frontend ↔ Backend Connection
+        fetch(`${import.meta.env.VITE_API_URL}/api/test`)
+            .then(res => res.json())
+            .then(data => console.log("API Connected:", data))
+            .catch(err => console.error("API Error:", err));
+    }, []);
+
+    const topContent: any[] = statsData?.topContent || [];
 
     const handleExport = () => {
         console.log("Initiating data export sequence...");
@@ -79,12 +86,17 @@ export default function Dashboard() {
                     <h1 className="text-5xl font-black text-white tracking-tighter uppercase italic">Dashboard</h1>
                     <div className="text-primary text-[10px] font-black uppercase tracking-[0.4em] mt-3 flex items-center gap-2">
                         <div className="w-2 h-2 bg-primary rounded-full animate-pulse shadow-soft-glow" />
-                        System Ready
+                        {loading ? 'Synchronizing...' : 'System Ready'}
                     </div>
                 </div>
             </div>
 
-            {((isAnyConnected || statsData) && stats.length > 0) ? (
+            {loading ? (
+                <div className="py-40 flex flex-col items-center justify-center space-y-8 animate-pulse">
+                    <Zap className="w-20 h-20 text-primary opacity-20" />
+                    <p className="text-[10px] font-black uppercase tracking-[0.5em] text-heaven-muted">Fetching Real-Time Intelligence...</p>
+                </div>
+            ) : ((isAnyConnected || statsData) && stats.length > 0) ? (
                 <>
                     {/* Stats Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -138,7 +150,7 @@ export default function Dashboard() {
                             <div className="flex-1 flex items-center justify-center relative">
                                 <div className="w-full h-full flex flex-col items-center justify-center text-heaven-text/20">
                                     <TrendingUp className="w-32 h-32 mb-6 opacity-10" />
-                                    <p className="text-xs font-black uppercase tracking-[0.4em]">Awaiting Data Stream...</p>
+                                    <p className="text-xs font-black uppercase tracking-[0.4em]">Connect Platforms to unlock insights</p>
                                 </div>
                             </div>
                         </Card>
@@ -151,10 +163,19 @@ export default function Dashboard() {
                                     <button className="text-heaven-muted hover:text-primary transition-colors"><MoreHorizontal className="w-5 h-5" /></button>
                                 </div>
                                 <div className="space-y-8">
-                                    {topContent.length === 0 && (
-                                        <p className="text-[10px] text-heaven-muted uppercase tracking-[0.2em] text-center py-10 opacity-30 font-bold italic">
-                                            Connect social accounts to see insights
-                                        </p>
+                                    {topContent.length === 0 ? (
+                                        <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 opacity-30">
+                                            <FileText className="w-12 h-12" />
+                                            <p className="text-[10px] text-heaven-muted uppercase tracking-[0.2em] font-bold italic">
+                                                No data available<br/>Connect a platform to see insights
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        topContent.map((item, idx) => (
+                                            <div key={idx} className="flex items-center justify-between">
+                                                {/* Content items rendering here */}
+                                            </div>
+                                        ))
                                     )}
                                 </div>
                             </Card>
@@ -163,8 +184,8 @@ export default function Dashboard() {
                 </>
             ) : (
                 <EmptyState 
-                    title="Begin Your Journey"
-                    description="Your dashboard is currently waiting for a data connection. Link your platforms to unlock the full potential of your digital empire."
+                    title="No Data Available"
+                    description="Connect a platform to see real-time insights and unlock the full potential of your digital empire."
                     icon={Sparkles}
                     actionLabel="Connect Platforms"
                     actionPath="/integrations"
