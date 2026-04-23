@@ -47,9 +47,24 @@ const User = require('./models');
 
 const sendOTP = async (req, res, next) => {
   try {
-    const { email, otp } = req.body;
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ success: false, message: 'Neural link failed. User not found.' });
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiry = new Date(Date.now() + 5 * 60000); // 5 minutes
+
+    user.otp = otp;
+    user.otp_expiry = otpExpiry;
+    await user.save();
+
     await sendOTPEmail(email, otp);
-    res.json({ success: true, message: 'OTP sent successfully' });
+    console.log(`[AUTH] Secure OTP generated and sent to ${email}`);
+
+    res.json({ success: true, message: 'Neural Access Code sent successfully' });
   } catch (error) {
     next(error);
   }
@@ -63,7 +78,6 @@ const resendOTP = async (req, res, next) => {
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-    // Prevent abuse: 60-second timer check
     const now = new Date();
     if (user.last_otp_resend && (now - user.last_otp_resend) < 60000) {
       const waitTime = Math.ceil((60000 - (now - user.last_otp_resend)) / 1000);
@@ -73,27 +87,45 @@ const resendOTP = async (req, res, next) => {
       });
     }
 
-    // Generate new OTP
     const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiry = new Date(Date.now() + 10 * 60000); // 10 minutes
+    const otpExpiry = new Date(Date.now() + 5 * 60000); // 5 minutes
 
-    // Update in DB
     user.otp = newOtp;
     user.otp_expiry = otpExpiry;
     user.last_otp_resend = now;
     await user.save();
 
-    // Send email
     await sendOTPEmail(email, newOtp);
-
-    res.json({ 
-      success: true, 
-      message: 'Verification code sent successfully',
-      otp: newOtp // Return for frontend sync
-    });
+    res.json({ success: true, message: 'New Access Code sent' });
   } catch (error) {
     next(error);
   }
 };
 
-module.exports = { register, login, getProfile, sendOTP, resendOTP };
+const verifyOTP = async (req, res, next) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) return res.status(400).json({ success: false, message: 'Email and Code required' });
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ success: false, message: 'Identity not found' });
+
+    if (user.otp !== otp) {
+      return res.status(400).json({ success: false, message: 'Neural Mismatch. Invalid Code.' });
+    }
+
+    if (new Date() > user.otp_expiry) {
+      return res.status(400).json({ success: false, message: 'Neural Link Expired. Request new code.' });
+    }
+
+    user.otp = undefined;
+    user.otp_expiry = undefined;
+    await user.save();
+
+    res.json({ success: true, message: 'Neural Link Established' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { register, login, getProfile, sendOTP, resendOTP, verifyOTP };
