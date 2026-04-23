@@ -32,20 +32,17 @@ app.use(cors({
 app.use(express.json());
 
 app.use('/auth', require('./modules/auth/routes'));
+app.use('/api/verify', require('./modules/verification/routes'));
+app.use('/api/dashboard', require('./modules/dashboard/routes'));
+app.use('/api/integrations', require('./modules/integrations/routes'));
+
 app.use('/creators', require('./modules/creators/routes'));
 app.use('/collaborations', require('./modules/collaborations/routes'));
 app.use('/market', require('./modules/market/routes'));
 app.use('/leads', require('./modules/leads/routes'));
-app.use('/dashboard', require('./modules/dashboard/routes'));
 app.use('/analytics', require('./modules/analytics/routes'));
-
-
-
 app.use("/api/ai", require('./modules/ai/routes'));
-
-
 app.use('/billing', require('./modules/billing/routes'));
-app.use('/verification', require('./modules/verification/routes'));
 app.use('/uploads', express.static('uploads'));
 // app.use('/automation', require('./modules/automation/routes')); // Disable if Redis is not running
 

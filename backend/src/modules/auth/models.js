@@ -19,7 +19,12 @@ const userSchema = new mongoose.Schema({
     default: "not_submitted"
   },
   verificationScreenshot: { type: String },
-  verificationCode: { type: String }
+  verificationCode: { type: String },
+  integrations: {
+    type: Map,
+    of: Boolean,
+    default: {}
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);
