@@ -87,8 +87,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 email: response.user.email, 
                 name: response.user.name, 
                 role: response.user.role as UserRole,
-                verificationStatus: response.user.verificationStatus,
-                verificationCode: response.user.verificationCode
+                verificationStatus: response.user.verificationStatus || 'not_submitted',
+                verificationCode: response.user.verificationCode || `CREATORSHQ_${Math.random().toString(36).substring(2, 6).toUpperCase()}`
             };
 
             setUser(userToLogin);
@@ -109,7 +109,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             await registerUser({ email, name, role, password: password || 'password123' });
             
-            const newUser: User = { email, name, role };
+            const newUser: User = { 
+                email, 
+                name, 
+                role,
+                verificationCode: `CREATORSHQ_${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+            };
             setUser(newUser);
             addUser(newUser);
             setIsAuthenticated(true);

@@ -17,6 +17,14 @@ export default function VerificationPage() {
     const navigate = useNavigate();
 
     useEffect(() => {
+        // First check local state
+        if (user?.verificationStatus === 'verified') {
+            const dashboardPath = user?.role === 'brand' ? '/brand-dashboard' : 
+                                user?.role === 'admin' ? '/admin-dashboard' : '/creator-dashboard';
+            navigate(dashboardPath);
+            return;
+        }
+
         const fetchStatus = async () => {
             try {
                 const res = await getVerificationStatus();
@@ -28,16 +36,21 @@ export default function VerificationPage() {
                     });
                     
                     if (res.data.verificationStatus === 'verified') {
-                        navigate('/dashboard');
+                        const dashboardPath = user?.role === 'brand' ? '/brand-dashboard' : 
+                                            user?.role === 'admin' ? '/admin-dashboard' : '/creator-dashboard';
+                        navigate(dashboardPath);
                     }
                 }
             } catch (err) {
-                console.error("Failed to fetch verification status", err);
+                console.warn("API Verification status fetch failed - using local state fallback.");
+                if (user?.verificationStatus) {
+                    setStatus(user.verificationStatus);
+                }
             }
         };
 
         if (user) fetchStatus();
-    }, []);
+    }, [user, navigate]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -52,42 +65,34 @@ export default function VerificationPage() {
             return;
         }
 
-        console.log("Initiating verification for:", socialHandle);
-        console.log("Proof attached:", file.name);
-
         setIsLoading(true);
         const toastId = toast.loading("Establishing neural link with platform...");
 
         try {
-            // MOCK VALIDATION: Require handle to start with @
-            if (!socialHandle.startsWith('@')) {
-                throw new Error("Invalid handle format. Must start with '@'.");
-            }
-
             // Simulate network latency
             await new Promise((resolve) => setTimeout(resolve, 2000));
 
-            // Randomly succeed or fail for realism, or just succeed for this demo
-            const success = true; 
-
-            if (success) {
-                toast.success("Identity Verified. Neural link established.", { id: toastId });
-                setStatus('pending');
-                updateProfile({ verificationStatus: 'pending' });
+            toast.success("Identity Verified. Neural link established.", { id: toastId });
+            setStatus('pending');
+            updateProfile({ verificationStatus: 'pending' });
+            
+            // For this demo, let's auto-verify after another delay
+            setTimeout(() => {
+                setStatus('verified');
+                updateProfile({ verificationStatus: 'verified' });
+                toast.success("Verification Complete! Dashboard access granted.");
                 
-                // For this demo, let's auto-verify after another delay
+                // Auto-redirect based on role
                 setTimeout(() => {
-                    setStatus('verified');
-                    updateProfile({ verificationStatus: 'verified' });
-                    toast.success("Verification Complete! Dashboard access granted.");
-                }, 3000);
+                    const dashboardPath = user?.role === 'brand' ? '/brand-dashboard' : 
+                                        user?.role === 'admin' ? '/admin-dashboard' : '/creator-dashboard';
+                    navigate(dashboardPath);
+                }, 2000);
+            }, 3000);
 
-            } else {
-                throw new Error("Identity mismatch detected by neural auditor.");
-            }
         } catch (err: any) {
             console.error("Verification error:", err);
-            toast.error(err.message || "Neural link interrupted. Please retry.", { id: toastId });
+            toast.error("Neural link interrupted. Please retry.", { id: toastId });
             setStatus('rejected');
         } finally {
             setIsLoading(false);
