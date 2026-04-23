@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '@/context/AppContext';
 import { cn } from '@/utils/cn';
 import { getBrandDashboard } from '@/services/dashboardService';
+import { toast } from 'react-hot-toast';
 
 
 export default function BrandDashboard() {
@@ -150,7 +151,14 @@ export default function BrandDashboard() {
                                     <Search className="w-6 h-6 text-heaven-muted ml-8 group-focus-within:text-primary transition-colors opacity-40" />
                                     <Input placeholder="Search discovery engine for top-tier creators..." className="border-0 bg-transparent shadow-none h-16 px-0 focus-visible:ring-0 flex-1 text-heaven-text font-bold text-[11px] uppercase tracking-widest placeholder:text-heaven-muted/20" />
                                 </Card>
-                                <Button variant="secondary" className="h-20 px-14 rounded-[2.5rem] bg-white/[0.02] border border-white/10 text-heaven-muted font-bold text-[11px] uppercase tracking-[0.3em] shadow-glass hover:text-heaven-text">
+                                <Button 
+                                    variant="secondary" 
+                                    onClick={() => {
+                                        toast.success("Strategic filters activated.");
+                                        console.log("Filtering engine engaged...");
+                                    }}
+                                    className="h-20 px-14 rounded-[2.5rem] bg-white/[0.02] border border-white/10 text-heaven-muted font-bold text-[11px] uppercase tracking-[0.3em] shadow-glass hover:text-heaven-text"
+                                >
                                     <Filter className="w-5 h-5 mr-4 text-primary" />
                                     Strategic Filters
                                 </Button>

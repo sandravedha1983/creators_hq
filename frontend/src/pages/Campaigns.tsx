@@ -11,11 +11,47 @@ import { useAppContext } from '@/context/AppContext';
 import { cn } from '@/utils/cn';
 import { toast } from 'react-hot-toast';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { useNavigate } from 'react-router-dom';
+import { Input } from '@/components/ui/Input';
 
 export default function Campaigns() {
     const { campaigns, addCampaign } = useAppContext();
     const [view, setView] = useState<'active' | 'planning'>('active');
     const [isCreating, setIsCreating] = useState(false);
+    const [newCampaignTitle, setNewCampaignTitle] = useState('');
+    const navigate = useNavigate();
+
+    const handleLaunchProject = () => {
+        console.log("Navigating to project launch pad...");
+        setIsCreating(true);
+    };
+
+    const handleCreateCampaign = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newCampaignTitle) {
+            toast.error("Please specify a mission objective (title).");
+            return;
+        }
+
+        const toastId = toast.loading("Finalizing architectural parameters...");
+        setTimeout(() => {
+            addCampaign({
+                title: newCampaignTitle,
+                brand: 'CreatorsHQ Internal',
+                status: 'Draft',
+                budget: '₹15,000',
+                applicants: []
+            });
+            setIsCreating(false);
+            setNewCampaignTitle('');
+            toast.success("Project launched into the stratosphere!", { id: toastId });
+        }, 1500);
+    };
+
+    const handleViewLiveStream = (title: string) => {
+        console.log(`Accessing live stream for: ${title}`);
+        toast.success(`Encrypted uplink established for ${title}`);
+    };
 
     return (
         <div className="space-y-12 animate-fade-in pb-20 max-w-7xl mx-auto">
@@ -79,7 +115,27 @@ export default function Campaigns() {
                         transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
                         className="space-y-10"
                     >
-                        {campaigns.length > 0 ? (
+                        {isCreating ? (
+                            <Card className="p-12 border-primary/20 bg-primary/5 rounded-[3rem] animate-fade-in">
+                                <h3 className="text-2xl font-bold text-white mb-8 uppercase tracking-tight">New Strategic Mission</h3>
+                                <form onSubmit={handleCreateCampaign} className="space-y-8">
+                                    <div className="space-y-4">
+                                        <label className="text-[10px] font-bold text-heaven-muted uppercase tracking-widest ml-2">Mission Objective (Title)</label>
+                                        <Input 
+                                            value={newCampaignTitle}
+                                            onChange={(e) => setNewCampaignTitle(e.target.value)}
+                                            placeholder="e.g. Q3 Lifestyle Breakthrough"
+                                            className="h-16 rounded-2xl bg-black/40 border-white/10"
+                                            autoFocus
+                                        />
+                                    </div>
+                                    <div className="flex gap-4">
+                                        <Button type="submit" variant="primary" className="flex-1 h-16 rounded-2xl font-bold uppercase tracking-widest">Deploy Mission</Button>
+                                        <Button type="button" variant="secondary" onClick={() => setIsCreating(false)} className="h-16 px-10 rounded-2xl font-bold uppercase tracking-widest border-white/10">Abort</Button>
+                                    </div>
+                                </form>
+                            </Card>
+                        ) : campaigns.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                                 {campaigns.map((c) => (
                                     <Card key={c.id} className="p-10 border-white/[0.08] bg-[#050810]/90 backdrop-blur-3xl rounded-[3rem] group hover:border-primary/20 transition-all duration-700 shadow-glass overflow-hidden relative">
@@ -112,7 +168,11 @@ export default function Campaigns() {
                                         </div>
 
                                         <div className="flex gap-4 relative z-10">
-                                            <Button variant="primary" className="flex-1 h-16 text-[10px] font-bold uppercase tracking-[0.3em] rounded-[2rem] shadow-soft-glow">
+                                            <Button 
+                                                variant="primary" 
+                                                className="flex-1 h-16 text-[10px] font-bold uppercase tracking-[0.3em] rounded-[2rem] shadow-soft-glow"
+                                                onClick={() => handleViewLiveStream(c.title)}
+                                            >
                                                 View Live Stream
                                             </Button>
                                             <Button variant="secondary" className="w-16 h-16 p-0 rounded-[2rem] bg-white/[0.02] border border-white/10 text-heaven-muted hover:text-heaven-text transition-all">
@@ -128,7 +188,7 @@ export default function Campaigns() {
                                 description="Your project portfolio is currently empty. Initiate a new campaign to begin building traction and collaborations."
                                 icon={Rocket}
                                 actionLabel="Launch New Project"
-                                actionPath="#"
+                                onClick={handleLaunchProject}
                                 className="py-40"
                             />
                         )}

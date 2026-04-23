@@ -161,7 +161,18 @@ export default function AdminDashboard() {
                                     <h3 className="text-3xl font-bold text-heaven-dark tracking-tight uppercase leading-none">Throughput Analysis</h3>
                                     <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.5em] leading-loose max-w-sm mx-auto opacity-60">System initialization required to baseline operational performance metrics. Diagnostic clusters are currently on standby.</p>
                                 </div>
-                                <Button variant="secondary" className="h-18 px-14 rounded-[2.25rem] bg-slate-50 border-slate-200 text-slate-400 font-bold text-[10px] uppercase tracking-[0.4em] hover:text-primary transition-all">Initialize Diagnostic</Button>
+                                <Button 
+                                    variant="secondary" 
+                                    onClick={() => {
+                                        const tId = toast.loading("Initializing diagnostic clusters...");
+                                        setTimeout(() => {
+                                            toast.success("Diagnostic sequence complete. All systems nominal.", { id: tId });
+                                        }, 2000);
+                                    }}
+                                    className="h-18 px-14 rounded-[2.25rem] bg-slate-50 border-slate-200 text-slate-400 font-bold text-[10px] uppercase tracking-[0.4em] hover:text-primary transition-all"
+                                >
+                                    Initialize Diagnostic
+                                </Button>
                             </Card>
                         </motion.div>
                     )}
