@@ -20,7 +20,7 @@ router.get('/google/callback',
   passport.authenticate('google', { failureRedirect: '/login' }),
   (req, res) => {
     const { token } = req.user;
-    const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendURL = (process.env.FRONTEND_URL || 'https://creators-hq.onrender.com').replace(/\/$/, '');
     res.redirect(`${frontendURL}/dashboard-redirect?token=${token}`);
   }
 );
@@ -31,7 +31,7 @@ router.get('/linkedin/callback',
   passport.authenticate('linkedin', { failureRedirect: '/login' }),
   (req, res) => {
     const { token } = req.user;
-    const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendURL = (process.env.FRONTEND_URL || 'https://creators-hq.onrender.com').replace(/\/$/, '');
     res.redirect(`${frontendURL}/dashboard-redirect?token=${token}`);
   }
 );

@@ -14,7 +14,7 @@ import CRM from './pages/CRM'
 import Content from './pages/Content'
 import Marketplace from './pages/Marketplace'
 import Analytics from './pages/Analytics'
-import DashboardRedirect from './pages/auth/DashboardRedirect'
+import DashboardRedirect from './pages/DashboardRedirect'
 import Automation from './pages/Automation'
 import Billing from './pages/Billing'
 import Profile from './pages/Profile'
@@ -62,6 +62,7 @@ function App() {
                     <Route path="/login" element={<Login />} />
                     <Route path="/signup" element={<Signup />} />
                     <Route path="/dashboard-redirect" element={<DashboardRedirect />} />
+                    <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout><Dashboard /></DashboardLayout></ProtectedRoute>} />
 
                     {/* Auth Verification */}
                     <Route path="/verify-otp" element={<ProtectedRoute><VerifyOtp /></ProtectedRoute>} />
