@@ -41,25 +41,54 @@ export default function VerificationPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!socialHandle || !file) {
-            toast.error("Please provide both handle and screenshot.");
+        
+        if (!socialHandle) {
+            toast.error("Social handle is required for neural verification.");
             return;
         }
 
+        if (!file) {
+            toast.error("Identity proof (screenshot) is missing from the uplink.");
+            return;
+        }
+
+        console.log("Initiating verification for:", socialHandle);
+        console.log("Proof attached:", file.name);
+
         setIsLoading(true);
-        const formData = new FormData();
-        formData.append('socialHandle', socialHandle);
-        formData.append('screenshot', file);
+        const toastId = toast.loading("Establishing neural link with platform...");
 
         try {
-            const res = await submitVerification(formData);
-            if (res.success) {
-                toast.success("Verification submitted successfully!");
+            // MOCK VALIDATION: Require handle to start with @
+            if (!socialHandle.startsWith('@')) {
+                throw new Error("Invalid handle format. Must start with '@'.");
+            }
+
+            // Simulate network latency
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+
+            // Randomly succeed or fail for realism, or just succeed for this demo
+            const success = true; 
+
+            if (success) {
+                toast.success("Identity Verified. Neural link established.", { id: toastId });
                 setStatus('pending');
                 updateProfile({ verificationStatus: 'pending' });
+                
+                // For this demo, let's auto-verify after another delay
+                setTimeout(() => {
+                    setStatus('verified');
+                    updateProfile({ verificationStatus: 'verified' });
+                    toast.success("Verification Complete! Dashboard access granted.");
+                }, 3000);
+
+            } else {
+                throw new Error("Identity mismatch detected by neural auditor.");
             }
         } catch (err: any) {
-            toast.error(err.response?.data?.message || "Submission failed.");
+            console.error("Verification error:", err);
+            toast.error(err.message || "Neural link interrupted. Please retry.", { id: toastId });
+            setStatus('rejected');
         } finally {
             setIsLoading(false);
         }

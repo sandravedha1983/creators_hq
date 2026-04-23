@@ -260,7 +260,11 @@ export default function Profile() {
                                     <p className="text-[10px] font-bold text-heaven-muted uppercase tracking-[0.4em] opacity-60">Priority Engine Access Active</p>
                                 </div>
                             </div>
-                            <Button variant="glass" className="rounded-2xl border border-white/[0.08] bg-white/[0.04] text-heaven-text hover:bg-white/[0.08] font-bold text-[10px] uppercase tracking-[0.4em] px-10 h-14 shadow-glass">
+                            <Button 
+                                variant="glass" 
+                                onClick={() => toast.success("Priority Registry Access is Active")}
+                                className="rounded-2xl border border-white/[0.08] bg-white/[0.04] text-heaven-text hover:bg-white/[0.08] font-bold text-[10px] uppercase tracking-[0.4em] px-10 h-14 shadow-glass"
+                            >
                                 Registry: Prime
                             </Button>
                         </div>

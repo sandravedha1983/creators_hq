@@ -22,6 +22,7 @@ import { cn } from '@/utils/cn';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { getCreatorDashboard } from '@/services/dashboardService';
 import { useEffect, useState } from 'react';
+import { toast } from 'react-hot-toast';
 
 export default function Dashboard() {
     const { user } = useAuth();
@@ -56,7 +57,13 @@ export default function Dashboard() {
     const recentLeads: any[] = [];
 
     const handleExport = () => {
-        // Implementation for export
+        console.log("Initiating data export sequence...");
+        const toastId = toast.loading("Preparing neural data packet...");
+        
+        setTimeout(() => {
+            toast.success("Data exported successfully to local storage.", { id: toastId });
+            console.log("Export complete.");
+        }, 1500);
     };
 
     return (

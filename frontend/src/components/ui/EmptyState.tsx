@@ -11,6 +11,7 @@ interface EmptyStateProps {
     icon?: LucideIcon;
     actionLabel?: string;
     actionPath?: string;
+    onClick?: () => void;
     className?: string;
 }
 
@@ -20,8 +21,15 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     icon: Icon = Rocket,
     actionLabel,
     actionPath,
+    onClick,
     className
 }) => {
+    const buttonContent = (
+        <Button variant="primary" size="lg" className="shadow-soft-glow" onClick={onClick}>
+            {actionLabel}
+        </Button>
+    );
+
     return (
         <motion.div 
             initial={{ opacity: 0, y: 20 }}
@@ -44,12 +52,14 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
             <p className="text-heaven-muted text-[11px] font-bold uppercase tracking-[0.4em] max-w-sm mx-auto leading-relaxed opacity-40">
                 {description}
             </p>
-            {actionLabel && actionPath && (
-                <Link to={actionPath}>
-                    <Button variant="primary" size="lg" className="shadow-soft-glow">
-                        {actionLabel}
-                    </Button>
-                </Link>
+            {actionLabel && (
+                onClick ? buttonContent : (
+                    actionPath && (
+                        <Link to={actionPath}>
+                            {buttonContent}
+                        </Link>
+                    )
+                )
             )}
         </motion.div>
     );

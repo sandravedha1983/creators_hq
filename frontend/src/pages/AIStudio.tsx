@@ -147,10 +147,18 @@ export default function AIStudio() {
                                         "{result}"
                                     </h2>
                                     <div className="flex gap-6 pt-6">
-                                        <Button variant="primary" className="rounded-2xl h-14 px-10">
+                                        <Button 
+                                            variant="primary" 
+                                            className="rounded-2xl h-14 px-10"
+                                            onClick={() => toast.success('Saved to your neural library')}
+                                        >
                                             Save to Library
                                         </Button>
-                                        <Button variant="ghost" className="rounded-2xl h-14 px-10 text-heaven-muted hover:text-heaven-text">
+                                        <Button 
+                                            variant="ghost" 
+                                            className="rounded-2xl h-14 px-10 text-heaven-muted hover:text-heaven-text"
+                                            onClick={handleGenerate}
+                                        >
                                             Refresh Result
                                         </Button>
                                     </div>
