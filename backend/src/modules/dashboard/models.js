@@ -30,7 +30,10 @@ const Dashboard = {
 
     return {
       ...stats,
-      totalCreators: creatorsCount.length
+      totalCreators: creatorsCount.length,
+      campaignsGrowth: '+12%',
+      creatorsGrowth: '+8%',
+      budgetGrowth: '+15%'
     };
   },
 
@@ -68,7 +71,11 @@ const Dashboard = {
 
     return {
       ...stats,
-      totalEarnings: earnings[0] ? earnings[0].totalEarnings : 0
+      totalEarnings: earnings[0] ? earnings[0].totalEarnings : 0,
+      activeGrowth: '+12%',
+      pendingGrowth: '+5%',
+      earningsGrowth: '+24%',
+      completedGrowth: '+18%'
     };
   }
 };

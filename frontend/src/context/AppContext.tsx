@@ -273,19 +273,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActivities(prev => prev.map(a => ({ ...a, read: true })));
     };
 
-    const toggleIntegration = (id: string) => {
-        setIntegrations(prev => prev.map(i => {
-            if (i.id === id) {
-                const newState = !i.connected;
-                addActivity({
-                    type: 'integration',
-                    message: `${i.name} integration ${newState ? 'activated' : 'deactivated'}`
-                });
-                return { ...i, connected: newState };
+    const toggleIntegration = async (id: string) => {
+        const integration = integrations.find(i => i.id === id);
+        if (!integration) return;
+
+        try {
+            const res = await API.post("/api/integrations/connect", { platform: integration.name.toLowerCase() });
+            if (res.data.success) {
+                setIntegrations(prev => prev.map(i => {
+                    if (i.id === id) {
+                        const newState = !i.connected;
+                        addActivity({
+                            type: 'integration',
+                            message: `${i.name} integration ${newState ? 'activated' : 'deactivated'}`
+                        });
+                        return { ...i, connected: newState };
+                    }
+                    return i;
+                }));
             }
-            return i;
-        }));
+        } catch (error) {
+            console.error("Failed to toggle integration", error);
+            throw error;
+        }
     };
+
+    // Add useEffect to sync integrations from backend on mount
+    useEffect(() => {
+        const syncIntegrations = async () => {
+            try {
+                const res = await API.get("/api/integrations");
+                if (res.data.success) {
+                    const connectedMap = res.data.data;
+                    setIntegrations(prev => prev.map(i => ({
+                        ...i,
+                        connected: !!connectedMap[i.name.toLowerCase()]
+                    })));
+                }
+            } catch (error) {
+                console.error("Failed to sync integrations", error);
+            }
+        };
+        syncIntegrations();
+    }, []);
 
     const inviteTeamMember = (email: string, role: string) => {
         const newMember: TeamMember = {

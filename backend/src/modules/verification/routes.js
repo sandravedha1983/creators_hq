@@ -25,6 +25,8 @@ const upload = multer({ storage });
 
 router.use(authenticate);
 
+router.post('/', controllers.generateCode);
+router.post('/check', controllers.checkVerification);
 router.post('/submit', upload.single('screenshot'), controllers.submitVerification);
 router.get('/status', controllers.getStatus);
 router.patch('/:id', controllers.updateStatus);

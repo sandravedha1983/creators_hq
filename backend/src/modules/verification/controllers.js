@@ -75,4 +75,49 @@ const updateStatus = async (req, res, next) => {
   }
 };
 
-module.exports = { submitVerification, getStatus, updateStatus };
+const generateCode = async (req, res, next) => {
+  try {
+    const { profileLink } = req.body;
+    if (!profileLink) {
+      return res.status(400).json({ success: false, message: 'Profile link is required' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const code = `CRHQ_${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+    user.verificationCode = code;
+    user.socialHandle = profileLink;
+    await user.save();
+
+    res.json({ success: true, code });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const checkVerification = async (req, res, next) => {
+  try {
+    const { profileLink, code } = req.body;
+    
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (user.verificationCode !== code) {
+      return res.status(400).json({ success: false, message: 'Invalid verification code' });
+    }
+
+    user.verificationStatus = 'verified';
+    await user.save();
+
+    res.json({ success: true, message: 'Verification successful' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { submitVerification, getStatus, updateStatus, generateCode, checkVerification };

@@ -47,10 +47,10 @@ export default function Dashboard() {
 
     // Map API stats to display stats
     const stats = statsData ? [
-        { label: 'Active Collaborations', value: statsData.activeCollaborations.toString(), growth: '+12%', subtext: 'Running projects' },
-        { label: 'Pending Requests', value: statsData.pendingRequests.toString(), growth: '+5%', subtext: 'Awaiting review' },
-        { label: 'Total Earnings', value: `₹${(statsData.totalEarnings * 80).toLocaleString()}`, growth: '+24%', subtext: 'Lifetime revenue' },
-        { label: 'Completed', value: statsData.completedCollaborations.toString(), growth: '+18%', subtext: 'Finished projects' }
+        { label: 'Active Collaborations', value: statsData.activeCollaborations.toString(), growth: statsData.activeGrowth, subtext: 'Running projects' },
+        { label: 'Pending Requests', value: statsData.pendingRequests.toString(), growth: statsData.pendingGrowth, subtext: 'Awaiting review' },
+        { label: 'Total Earnings', value: `₹${(statsData.totalEarnings * 80).toLocaleString()}`, growth: statsData.earningsGrowth, subtext: 'Lifetime revenue' },
+        { label: 'Completed', value: statsData.completedCollaborations.toString(), growth: statsData.completedGrowth, subtext: 'Finished projects' }
     ] : [];
 
     const topContent: any[] = [];
