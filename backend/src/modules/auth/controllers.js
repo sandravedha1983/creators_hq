@@ -1,10 +1,21 @@
 const authService = require('./services');
 const { registerSchema, loginSchema } = require('./validations');
+const Analytics = require('../analytics/models');
 
 const register = async (req, res, next) => {
   try {
     const validatedData = registerSchema.parse(req.body);
     const user = await authService.register(validatedData);
+    
+    // Initialize Analytics for the new user
+    await Analytics.create({
+      userId: user._id,
+      followers: 1200,
+      engagement: 8.5,
+      earnings: 2500,
+      growthScore: 78
+    });
+
     res.status(201).json({ success: true, data: user });
   } catch (error) {
     next(error);

@@ -34,6 +34,7 @@ app.use('/auth', require('./modules/auth/routes'));
 app.use('/api/verify', require('./modules/verification/routes'));
 app.use('/api/dashboard', require('./modules/dashboard/routes'));
 app.use('/api/integrations', require('./modules/integrations/routes'));
+app.use('/api/ai', require('./modules/ai/routes'));
 
 app.get('/api/test', (req, res) => {
   res.json({ message: 'Backend working' });
