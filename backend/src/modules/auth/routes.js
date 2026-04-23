@@ -12,6 +12,7 @@ router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.post('/send-otp', authController.sendOTP);
 router.post('/resend-otp', authController.resendOTP);
+router.post('/verify-otp', authController.verifyOTP);
 
 // Google OAuth
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));

@@ -100,19 +100,23 @@ export default function VerifyOtp() {
         setIsLoading(true);
         setError('');
 
-        // Simulate Neural Decryption
-        setTimeout(() => {
-            const success = verifyOtp(otpString);
+        try {
+            const success = await verifyOtp(otpString);
             setIsLoading(false);
 
             if (success) {
                 toast.success('Neural Link Established');
             } else {
-                setError(`Security mismatch. Check system logs for the code.`);
+                setError('Security mismatch. The access code provided is invalid or expired.');
                 toast.error('Verification Failed');
                 triggerShake();
             }
-        }, 1500);
+        } catch (err) {
+            setIsLoading(false);
+            setError('Neural uplink interrupted. Please try again.');
+            toast.error('System Error');
+            triggerShake();
+        }
     };
 
     const triggerShake = () => {

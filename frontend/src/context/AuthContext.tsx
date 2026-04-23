@@ -30,7 +30,7 @@ interface AuthContextType {
     otp: string | null;
     login: (email: string, password?: string) => Promise<void>;
     signup: (email: string, name: string, role: UserRole, password?: string) => Promise<void>;
-    verifyOtp: (otp: string) => boolean;
+    verifyOtp: (otp: string) => Promise<boolean>;
     tokenLogin: (token: string, userData: User) => Promise<void>;
     logout: () => void;
     updateProfile: (data: Partial<User>) => void;
@@ -43,7 +43,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [user, setUser] = useState<User | null>(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isVerified, setIsVerified] = useState(false);
-    const [otp, setOtp] = useState<string | null>(null);
     const { addUser } = useAppContext();
 
     useEffect(() => {
@@ -58,44 +57,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     }, []);
 
-    const generateOtp = async (email?: string) => {
-        const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
-        setOtp(newOtp);
-        
-        const targetEmail = email || user?.email;
-        if (targetEmail) {
-            try {
-                await sendOTP(targetEmail, newOtp);
-            } catch (error) {
-                console.error("Failed to send OTP email:", error);
-            }
-        }
-        
-        console.log(`[CREATORSHQ AUTH] Verification code: ${newOtp}`);
-        return newOtp;
-    };
+
 
     const login = async (email: string, password?: string) => {
         try {
-            // If no password provided, it might be a demo login or we need to handle it.
-            // For real backend connection, we need the password.
-            if (!password) {
-                console.warn("Login called without password, using demo fallback if applicable");
-            }
-
             const response = await loginUser({ email, password: password || 'password123' });
             const userToLogin: User = { 
                 email: response.user.email, 
                 name: response.user.name, 
                 role: response.user.role as UserRole,
                 verificationStatus: response.user.verificationStatus || 'not_submitted',
-                verificationCode: response.user.verificationCode || `CREATORSHQ_${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+                verificationCode: response.user.verificationCode
             };
 
             setUser(userToLogin);
             setIsAuthenticated(true);
-            setIsVerified(false); // Still require OTP simulation if requested
-            generateOtp();
+            setIsVerified(false);
+
+            // Trigger real backend OTP
+            await sendOTP(email, ""); // We don't need to pass OTP anymore, backend handles it
 
             localStorage.setItem('creatorshq_user', JSON.stringify(userToLogin));
             localStorage.setItem('creatorshq_auth', 'true');
@@ -113,14 +93,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const newUser: User = { 
                 email, 
                 name, 
-                role,
-                verificationCode: `CREATORSHQ_${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+                role
             };
             setUser(newUser);
             addUser(newUser);
             setIsAuthenticated(true);
             setIsVerified(false);
-            generateOtp();
+            
+            // Trigger real backend OTP
+            await sendOTP(email, "");
 
             localStorage.setItem('creatorshq_user', JSON.stringify(newUser));
             localStorage.setItem('creatorshq_auth', 'true');
@@ -131,24 +112,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    const verifyOtp = (inputOtp: string): boolean => {
-        if (inputOtp === otp && otp !== null) {
-            setIsVerified(true);
-            localStorage.setItem('creatorshq_verified', 'true');
-            return true;
+    const verifyOtp = async (inputOtp: string): Promise<boolean> => {
+        try {
+            const API_URL = import.meta.env.VITE_API_URL;
+            const res = await fetch(`${API_URL}/auth/verify-otp`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: user?.email, otp: inputOtp })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                setIsVerified(true);
+                localStorage.setItem('creatorshq_verified', 'true');
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error("OTP Verification Error:", error);
+            return false;
         }
-        return false;
     };
 
     const tokenLogin = async (token: string, userData: User) => {
         setUser(userData);
         setIsAuthenticated(true);
-        setIsVerified(false);
-        generateOtp();
+        setIsVerified(true); // OAuth users are pre-verified
         localStorage.setItem('token', token);
         localStorage.setItem('creatorshq_user', JSON.stringify(userData));
         localStorage.setItem('creatorshq_auth', 'true');
-        localStorage.setItem('creatorshq_verified', 'false');
+        localStorage.setItem('creatorshq_verified', 'true');
     };
 
     const logout = () => {
@@ -192,7 +185,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     return (
-        <AuthContext.Provider value={{ user, isAuthenticated, isVerified, otp, login, signup, verifyOtp, tokenLogin, logout, updateProfile, resendOtp }}>
+        <AuthContext.Provider value={{ user, isAuthenticated, isVerified, otp: null, login, signup, verifyOtp, tokenLogin, logout, updateProfile, resendOtp }}>
             {children}
         </AuthContext.Provider>
     );
