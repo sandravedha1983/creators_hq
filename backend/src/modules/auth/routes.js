@@ -17,7 +17,7 @@ router.post('/verify-otp', authController.verifyOTP);
 // Google OAuth
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 router.get('/google/callback', 
-  passport.authenticate('google', { failureRedirect: '/login' }),
+  passport.authenticate('google', { session: false, failureRedirect: '/login' }),
   (req, res) => {
     const { token } = req.user;
     const frontendURL = (process.env.FRONTEND_URL || 'https://creators-hq.onrender.com').replace(/\/$/, '');
@@ -26,9 +26,9 @@ router.get('/google/callback',
 );
 
 // LinkedIn OAuth
-router.get('/linkedin', passport.authenticate('linkedin', { state: 'SOME_STATE' }));
+router.get('/linkedin', passport.authenticate('linkedin', { scope: ['r_liteprofile', 'r_emailaddress'], state: 'SOME_STATE' }));
 router.get('/linkedin/callback',
-  passport.authenticate('linkedin', { failureRedirect: '/login' }),
+  passport.authenticate('linkedin', { session: false, failureRedirect: '/login' }),
   (req, res) => {
     const { token } = req.user;
     const frontendURL = (process.env.FRONTEND_URL || 'https://creators-hq.onrender.com').replace(/\/$/, '');
