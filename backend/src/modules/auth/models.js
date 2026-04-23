@@ -24,7 +24,12 @@ const userSchema = new mongoose.Schema({
     type: Map,
     of: Boolean,
     default: {}
-  }
+  },
+  instagramConnected: { type: Boolean, default: false },
+  instagramUsername: { type: String },
+  instagramAccessToken: { type: String },
+  followers: { type: Number, default: 0 },
+  engagement: { type: Number, default: 0 }
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);
