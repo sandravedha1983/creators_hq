@@ -148,7 +148,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(null);
         setIsAuthenticated(false);
         setIsVerified(false);
-        setOtp(null);
         localStorage.removeItem('creatorshq_user');
         localStorage.removeItem('creatorshq_auth');
         localStorage.removeItem('creatorshq_verified');
@@ -171,9 +170,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.log(`[CREATORSHQ AUTH] Requesting OTP resend for: ${user.email}`);
             const response = await resendOTP(user.email);
             if (response.success) {
-                setOtp(response.otp);
                 toast.success('New verification code sent to your email');
-                console.log(`[CREATORSHQ AUTH] Resend successful. New code: ${response.otp}`);
                 return true;
             }
         } catch (error: any) {
