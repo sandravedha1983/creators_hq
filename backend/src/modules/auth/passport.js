@@ -10,6 +10,7 @@ passport.use(new GoogleStrategy({
     callbackURL: process.env.GOOGLE_CALLBACK_URL
   },
   async (accessToken, refreshToken, profile, done) => {
+    console.log("Google Redirect URL:", process.env.GOOGLE_CALLBACK_URL);
     try {
       let user = await User.findOne({ email: profile.emails[0].value });
       
@@ -42,6 +43,7 @@ passport.use(new LinkedInStrategy({
     scope: ['openid', 'profile', 'email']
   },
   async (accessToken, refreshToken, profile, done) => {
+    console.log("LinkedIn Redirect URL:", process.env.LINKEDIN_CALLBACK_URL);
     try {
       const email = profile.emails[0].value;
       let user = await User.findOne({ email });
