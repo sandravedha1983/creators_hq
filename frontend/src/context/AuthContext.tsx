@@ -115,7 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const verifyOtp = async (inputOtp: string): Promise<boolean> => {
         try {
             const API_URL = import.meta.env.VITE_API_URL;
-            const res = await fetch(`${API_URL}/auth/verify-otp`, {
+            const res = await fetch(`${API_URL}/api/verify-otp`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email: user?.email, otp: inputOtp })
