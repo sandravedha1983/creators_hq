@@ -1,5 +1,7 @@
 const User = require('../auth/models');
 
+const Analytics = require('../analytics/models');
+
 const connectPlatform = async (req, res, next) => {
   try {
     const { platform } = req.body;
@@ -16,6 +18,32 @@ const connectPlatform = async (req, res, next) => {
     if (!user.integrations) user.integrations = new Map();
     
     user.integrations.set(platform, true);
+
+    if (platform === 'instagram') {
+      user.instagramConnected = true;
+      user.instagramUsername = 'creator_demo';
+      user.followers = 15400;
+      user.engagement = 4.8;
+
+      // Also update/create analytics
+      await Analytics.findOneAndUpdate(
+        { userId: user._id },
+        {
+          userId: user._id,
+          followers: 15400,
+          engagement: 4.8,
+          instagramData: {
+            username: 'creator_demo',
+            followers: 15400,
+            engagement: 4.8,
+            connected: true
+          },
+          lastUpdated: new Date()
+        },
+        { upsert: true, new: true }
+      );
+    }
+
     await user.save();
 
     res.json({ success: true, message: `${platform} connected successfully` });

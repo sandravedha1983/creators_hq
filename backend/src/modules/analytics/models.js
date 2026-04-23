@@ -12,7 +12,13 @@ const AnalyticsSchema = new mongoose.Schema({
     engagement: Number,
     earnings: Number
   }],
-  lastUpdated: { type: Date, default: Date.now }
+  lastUpdated: { type: Date, default: Date.now },
+  instagramData: {
+    username: String,
+    followers: Number,
+    engagement: Number,
+    connected: { type: Boolean, default: false }
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Analytics', AnalyticsSchema);

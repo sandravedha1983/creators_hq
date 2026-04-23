@@ -65,7 +65,9 @@ const Dashboard = {
       earnings: analytics.earnings,
       earningsGrowth: '+24%',
       growthScore: analytics.growthScore,
-      growthScoreGrowth: '+18%'
+      growthScoreGrowth: '+18%',
+      instagramConnected: analytics.instagramData?.connected || false,
+      instagramUsername: analytics.instagramData?.username
     };
   }
 };

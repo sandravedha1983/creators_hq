@@ -40,7 +40,7 @@ passport.use(new LinkedInStrategy({
     clientID: process.env.LINKEDIN_CLIENT_ID,
     clientSecret: process.env.LINKEDIN_CLIENT_SECRET,
     callbackURL: process.env.LINKEDIN_CALLBACK_URL,
-    scope: ['profile', 'email']
+    scope: ['r_liteprofile', 'r_emailaddress']
   },
   async (accessToken, refreshToken, profile, done) => {
     console.log("LinkedIn Redirect URL:", process.env.LINKEDIN_CALLBACK_URL);

@@ -57,4 +57,32 @@ const getGrowthSuggestions = async (req, res, next) => {
   }
 };
 
-module.exports = { generateContent, getGrowthSuggestions };
+const chat = async (req, res, next) => {
+  try {
+    const { message } = req.body;
+    
+    if (!process.env.OPENAI_API_KEY) {
+      return res.json({ 
+        success: true, 
+        data: "AI: I'm currently in offline mode. How can I assist you with your content strategy today?" 
+      });
+    }
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [
+        { role: "system", content: "You are a helpful AI assistant for CreatorsHQ, specializing in social media growth." },
+        { role: "user", content: message }
+      ],
+    });
+
+    res.json({ 
+      success: true, 
+      reply: response.choices[0].message.content || `Creative idea: ${message} → Try storytelling + strong hook 🎯` 
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { generateContent, getGrowthSuggestions, chat };

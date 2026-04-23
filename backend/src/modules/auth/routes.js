@@ -6,7 +6,7 @@ const router = express.Router();
 console.log("Auth routes loaded");
 
 
-const passport = require('passport');
+const passport = require('./passport');
 
 router.post('/register', authController.register);
 router.post('/login', authController.login);
