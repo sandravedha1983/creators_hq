@@ -17,14 +17,7 @@ connectDB();
 console.log("OAuth Config - Google Callback:", process.env.GOOGLE_CALLBACK_URL);
 console.log("OAuth Config - LinkedIn Callback:", process.env.LINKEDIN_CALLBACK_URL);
 
-app.use(session({
-    secret: process.env.JWT_SECRET,
-    resave: false,
-    saveUninitialized: false
-}));
-
 app.use(passport.initialize());
-app.use(passport.session());
 
 app.use(cors({
     origin: "*",
