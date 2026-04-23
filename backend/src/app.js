@@ -35,6 +35,10 @@ app.use('/api/verify', require('./modules/verification/routes'));
 app.use('/api/dashboard', require('./modules/dashboard/routes'));
 app.use('/api/integrations', require('./modules/integrations/routes'));
 
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'Backend working' });
+});
+
 app.use('/creators', require('./modules/creators/routes'));
 app.use('/collaborations', require('./modules/collaborations/routes'));
 app.use('/market', require('./modules/market/routes'));
