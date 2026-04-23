@@ -48,12 +48,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     useEffect(() => {
         const storedUser = localStorage.getItem('creatorshq_user');
         const storedAuth = localStorage.getItem('creatorshq_auth');
-        const storedVerified = localStorage.getItem('creatorshq_verified');
+        const token = localStorage.getItem('token');
 
         if (storedUser && storedAuth === 'true') {
             setUser(JSON.parse(storedUser));
             setIsAuthenticated(true);
-            setIsVerified(storedVerified === 'true');
+            setIsVerified(localStorage.getItem('creatorshq_verified') === 'true');
+        } else if (token) {
+            // If we have a token but no user data, we should fetch the profile
+            getProfile().then(response => {
+                const userData = response.data;
+                setUser(userData);
+                setIsAuthenticated(true);
+                setIsVerified(true);
+                localStorage.setItem('creatorshq_user', JSON.stringify(userData));
+                localStorage.setItem('creatorshq_auth', 'true');
+                localStorage.setItem('creatorshq_verified', 'true');
+            }).catch(() => {
+                localStorage.removeItem('token');
+            });
         }
     }, []);
 
