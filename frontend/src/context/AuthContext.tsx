@@ -20,6 +20,7 @@ interface User {
         youtube?: string;
         linkedin?: string;
     };
+    socialHandle?: string;
 }
 
 interface AuthContextType {
