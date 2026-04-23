@@ -1,6 +1,7 @@
 const Campaign = require('../market/models');
 const Collaboration = require('../collaborations/models');
 const Transaction = require('../billing/models');
+const Analytics = require('../analytics/models');
 const mongoose = require('mongoose');
 
 const Dashboard = {
@@ -39,50 +40,31 @@ const Dashboard = {
 
   async getCreatorStats(creatorId) {
     const cId = new mongoose.Types.ObjectId(creatorId);
-
-    const collabsStats = await Collaboration.aggregate([
-      { $match: { receiver_id: cId } },
-      {
-        $group: {
-          _id: null,
-          activeCollaborations: { 
-            $sum: { $cond: [{ $eq: ["$status", "accepted"] }, 1, 0] } 
-          },
-          completedCollaborations: { 
-            $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] } 
-          },
-          pendingRequests: { 
-            $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] } 
-          }
-        }
-      }
-    ]);
-
-    const earnings = await Transaction.aggregate([
-      { $match: { recipient_id: cId, status: 'paid' } },
-      { $group: { _id: null, totalEarnings: { $sum: "$amount" } } }
-    ]);
-
-    const stats = collabsStats[0] || { 
-      activeCollaborations: 0, 
-      completedCollaborations: 0, 
-      pendingRequests: 0 
-    };
+    
+    // Fetch real analytics from MongoDB
+    const analytics = await Analytics.findOne({ userId: cId });
+    
+    if (!analytics) {
+      return {
+        followers: 1200,
+        followersGrowth: '+12%',
+        engagement: 8.5,
+        engagementGrowth: '+5%',
+        earnings: 2500,
+        earningsGrowth: '+24%',
+        growthScore: 78,
+        growthScoreGrowth: '+18%'
+      };
+    }
 
     return {
-      ...stats,
-      totalEarnings: earnings[0] ? earnings[0].totalEarnings : 0,
-      activeGrowth: '+12%',
-      pendingGrowth: '+5%',
-      earningsGrowth: '+24%',
-      completedGrowth: '+18%',
-      followers: 1200,
+      followers: analytics.followers,
       followersGrowth: '+12%',
-      engagement: 8.5,
+      engagement: analytics.engagement,
       engagementGrowth: '+5%',
-      earnings: 2500,
+      earnings: analytics.earnings,
       earningsGrowth: '+24%',
-      growthScore: 78,
+      growthScore: analytics.growthScore,
       growthScoreGrowth: '+18%'
     };
   }
