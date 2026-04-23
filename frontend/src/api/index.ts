@@ -24,3 +24,8 @@ export const getIntegrations = async () => {
     const res = await API.get("/api/integrations");
     return res.data;
 };
+
+export const testBackend = async () => {
+    const res = await API.get("/api/test");
+    return res.data;
+};
