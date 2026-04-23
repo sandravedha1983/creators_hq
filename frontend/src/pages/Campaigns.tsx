@@ -89,9 +89,9 @@ export default function Campaigns() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                 {[
                     { label: 'Active Campaigns', value: campaigns.length, icon: Target, color: 'text-primary', bg: 'bg-primary/5 border-primary/10' },
-                    { label: 'Total Reach', value: '0.00', icon: Users, color: 'text-secondary', bg: 'bg-secondary/5 border-secondary/10' },
-                    { label: 'Avg Engagement', value: '0.0%', icon: Zap, color: 'text-accent', bg: 'bg-accent/5 border-accent/10' },
-                    { label: 'Completion Rate', value: '0.0%', icon: BarChart3, color: 'text-primary', bg: 'bg-primary/5 border-primary/10' }
+                    { label: 'Total Reach', value: '0', icon: Users, color: 'text-secondary', bg: 'bg-secondary/5 border-secondary/10' },
+                    { label: 'Avg Engagement', value: '0%', icon: Zap, color: 'text-accent', bg: 'bg-accent/5 border-accent/10' },
+                    { label: 'Completion Rate', value: '0%', icon: BarChart3, color: 'text-primary', bg: 'bg-primary/5 border-primary/10' }
                 ].map((stat, i) => (
                     <Card key={i} className="p-8 border-white/[0.08] bg-[#050810]/90 backdrop-blur-3xl rounded-[2.5rem] shadow-glass flex items-center gap-6 group hover:scale-[1.02] transition-all duration-700 overflow-hidden relative">
                         <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-2xl -mr-12 -mt-12 group-hover:bg-primary/10 transition-colors duration-700" />

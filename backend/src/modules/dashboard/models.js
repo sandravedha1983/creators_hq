@@ -75,7 +75,11 @@ const Dashboard = {
       activeGrowth: '+12%',
       pendingGrowth: '+5%',
       earningsGrowth: '+24%',
-      completedGrowth: '+18%'
+      completedGrowth: '+18%',
+      followers: 1200,
+      engagement: 8.5,
+      earnings: 2500,
+      growthScore: 78
     };
   }
 };
