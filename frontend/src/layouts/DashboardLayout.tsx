@@ -11,7 +11,7 @@ interface DashboardLayoutProps {
 }
 
 const getBgImage = (pathname: string) => {
-    const basePath = '/assets/backgrounds/';
+    const basePath = '/backgrounds/';
     if (pathname.includes('dashboard')) return `${basePath}dashboard_bg.png`;
     if (pathname.includes('profile')) return `${basePath}profile_bg.png`;
     if (pathname.includes('billing')) return `${basePath}payment_bg.png`;
