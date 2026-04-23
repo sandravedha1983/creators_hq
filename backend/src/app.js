@@ -21,11 +21,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.use(cors({
-    origin: [
-        "http://localhost:5173", 
-        "http://localhost:3000",
-        "https://creators-hq.vercel.app"
-    ],
+    origin: "*",
     credentials: true
 }));
 
@@ -59,4 +55,6 @@ app.get("/test", (req, res) => {
 app.use(require('./middleware/error'));
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
