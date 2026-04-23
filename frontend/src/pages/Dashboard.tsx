@@ -23,6 +23,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { getCreatorDashboard } from '@/services/dashboardService';
 import { useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
+import { testBackend } from '@/api';
 
 export default function Dashboard() {
     const { user } = useAuth();
@@ -34,6 +35,10 @@ export default function Dashboard() {
     useEffect(() => {
         const fetchStats = async () => {
             try {
+                // Test backend connectivity
+                const test = await testBackend();
+                console.log("Backend Connectivity Test:", test.message);
+
                 const res = await getCreatorDashboard();
                 setStatsData(res.data);
             } catch (err) {
