@@ -52,10 +52,10 @@ export default function Dashboard() {
 
     // Map API stats to display stats
     const stats = statsData ? [
-        { label: 'Total Followers', value: statsData.followers.toLocaleString(), growth: '+12%', subtext: 'Social reach' },
-        { label: 'Engagement Rate', value: `${statsData.engagement}%`, growth: '+5%', subtext: 'Interaction score' },
-        { label: 'Total Earnings', value: `₹${(statsData.earnings * 80).toLocaleString()}`, growth: '+24%', subtext: 'Monthly revenue' },
-        { label: 'Growth Score', value: statsData.growthScore.toString(), growth: '+18%', subtext: 'Platform momentum' }
+        { label: 'Total Followers', value: statsData.followers.toLocaleString(), growth: statsData.followersGrowth, subtext: 'Social reach' },
+        { label: 'Engagement Rate', value: `${statsData.engagement}%`, growth: statsData.engagementGrowth, subtext: 'Interaction score' },
+        { label: 'Total Earnings', value: `₹${(statsData.earnings * 80).toLocaleString()}`, growth: statsData.earningsGrowth, subtext: 'Monthly revenue' },
+        { label: 'Growth Score', value: statsData.growthScore.toString(), growth: statsData.growthScoreGrowth, subtext: 'Platform momentum' }
     ] : [];
 
     useEffect(() => {
