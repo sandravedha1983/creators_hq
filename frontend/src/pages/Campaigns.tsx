@@ -38,9 +38,10 @@ export default function Campaigns() {
             addCampaign({
                 title: newCampaignTitle,
                 brand: 'CreatorsHQ Internal',
-                status: 'Draft',
+                brandId: 'system',
+                description: 'Automated strategic initiative launched via Studio.',
                 budget: '₹15,000',
-                applicants: []
+                image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=1000&auto=format&fit=crop'
             });
             setIsCreating(false);
             setNewCampaignTitle('');
