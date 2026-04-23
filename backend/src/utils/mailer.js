@@ -1,9 +1,18 @@
 const { Resend } = require('resend');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+
+if (!resend) {
+    console.warn("WARNING: RESEND_API_KEY is missing. Email delivery will be disabled.");
+}
 
 const sendOTPEmail = async (email, otp) => {
     try {
+        if (!resend) {
+            console.log(`[AUTH DEBUG] Email delivery disabled. Access Code for ${email}: ${otp}`);
+            return { id: 'debug-id', message: 'Email skipped (missing API key)' };
+        }
+
         const { data, error } = await resend.emails.send({
             from: process.env.FROM_EMAIL || 'onboarding@resend.dev',
             to: email,
