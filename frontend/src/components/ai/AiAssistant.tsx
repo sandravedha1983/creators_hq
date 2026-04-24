@@ -37,7 +37,7 @@ export const AiAssistant = () => {
         try {
             const response = await API.post('/api/ai/chat', { message: userMessage });
             if (response.data.success) {
-                setChatHistory(prev => [...prev, { role: 'assistant', content: response.data.response }]);
+                setChatHistory(prev => [...prev, { role: 'assistant', content: response.data.reply }]);
             }
         } catch (error) {
             setChatHistory(prev => [...prev, { role: 'assistant', content: "I'm having trouble connecting right now. Please check your system logs." }]);

@@ -122,7 +122,7 @@ export default function AIStudio() {
                     </Card>
 
                     <AnimatePresence mode="wait">
-                        {result && (
+                        {result ? (
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -132,20 +132,57 @@ export default function AIStudio() {
                                 <Card className="p-10 border-primary/20 bg-primary/5 rounded-[3rem] relative overflow-hidden">
                                     <div className="flex items-center justify-between mb-8">
                                         <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">Generated Intelligence</h4>
-                                        <button 
-                                            onClick={copyToClipboard}
-                                            className="p-3 bg-white/5 rounded-xl text-heaven-muted hover:text-white transition-all border border-white/5"
-                                        >
-                                            <Copy className="w-4 h-4" />
-                                        </button>
+                                        <div className="flex gap-2">
+                                            <button 
+                                                onClick={() => setResult(null)}
+                                                className="p-3 bg-white/5 rounded-xl text-heaven-muted hover:text-white transition-all border border-white/5"
+                                            >
+                                                <RefreshCw className="w-4 h-4" />
+                                            </button>
+                                            <button 
+                                                onClick={copyToClipboard}
+                                                className="p-3 bg-white/5 rounded-xl text-heaven-muted hover:text-white transition-all border border-white/5"
+                                            >
+                                                <Copy className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </div>
                                     <p className="text-white/90 text-sm leading-relaxed font-medium italic">
                                         "{result}"
                                     </p>
                                 </Card>
                             </motion.div>
+                        ) : (
+                            <Card className="p-10 border-white/[0.08] bg-white/[0.02] rounded-[3rem] flex flex-col items-center justify-center min-h-[300px] text-center space-y-6">
+                                <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center text-heaven-muted opacity-20">
+                                    <Sparkles className="w-10 h-10" />
+                                </div>
+                                <div className="space-y-2">
+                                    <p className="text-sm font-bold text-heaven-text/60">Neural Uplink Idle</p>
+                                    <p className="text-[10px] text-heaven-muted uppercase tracking-widest opacity-40">Awaiting content parameters...</p>
+                                </div>
+                            </Card>
                         )}
                     </AnimatePresence>
+
+                    {/* AI Chat Support Section */}
+                    <Card className="p-10 border-white/[0.08] bg-white/[0.02] rounded-[3rem] space-y-8">
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary">
+                                <MessageSquare className="w-5 h-5" />
+                            </div>
+                            <h3 className="text-lg font-bold uppercase tracking-tight">Growth Assistant</h3>
+                        </div>
+                        <div className="flex gap-4">
+                            <Input 
+                                placeholder="Ask about growth strategies..." 
+                                className="h-14 rounded-2xl bg-black/40 border-white/10"
+                            />
+                            <Button variant="primary" className="h-14 px-8 rounded-2xl">
+                                <Send className="w-4 h-4" />
+                            </Button>
+                        </div>
+                    </Card>
                 </div>
             </div>
         </div>

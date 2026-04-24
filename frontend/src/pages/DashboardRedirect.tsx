@@ -18,7 +18,7 @@ const DashboardRedirect = () => {
     }
   }, []);
 
-  return <div>Redirecting...</div>;
+  return <div>Logging you in...</div>;
 };
 
 export default DashboardRedirect;

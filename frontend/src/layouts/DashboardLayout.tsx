@@ -6,6 +6,8 @@ import { useLocation } from "react-router-dom"
 import { cn } from "@/utils/cn"
 import { AiAssistant } from "@/components/ai/AiAssistant"
 
+import { useAuth } from '@/context/AuthContext';
+
 interface DashboardLayoutProps {
     children: React.ReactNode
 }
@@ -24,6 +26,7 @@ const getBgImage = (pathname: string) => {
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
+    const { user } = useAuth();
     const { pathname } = useLocation();
     const bgImage = getBgImage(pathname);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -69,7 +72,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     </motion.div>
                 </main>
             </div>
-            <AiAssistant />
+            {user?.role === "creator" && <AiAssistant />}
         </div>
     )
 }
