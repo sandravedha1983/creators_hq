@@ -14,10 +14,20 @@ import { toast } from 'react-hot-toast';
 export default function Integrations() {
     const { integrations, toggleIntegration } = useAppContext();
     const [isSyncing, setIsSyncing] = useState<string | null>(null);
+    const [showInstagramModal, setShowInstagramModal] = useState(false);
+    const [manualData, setManualData] = useState({
+        profileLink: '',
+        followers: '',
+        engagementRate: ''
+    });
 
     const handleToggle = async (id: string, name: string, isConnected: boolean) => {
+        if (name === 'Instagram' && !isConnected) {
+            setShowInstagramModal(true);
+            return;
+        }
+
         setIsSyncing(id);
-        
         try {
             await toggleIntegration(id);
             toast.success(`${name} ${isConnected ? 'Disconnected' : 'Connected Successfully'}`);
@@ -26,6 +36,34 @@ export default function Integrations() {
             toast.error(`Failed to link ${name}. Check your connection.`);
         } finally {
             setIsSyncing(null);
+        }
+    };
+
+    const handleManualSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const toastId = toast.loading("Linking Instagram...");
+        try {
+            const API_URL = import.meta.env.VITE_API_URL;
+            const token = localStorage.getItem("token");
+            const response = await fetch(`${API_URL}/api/integrations/instagram`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify(manualData)
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                toast.success("Instagram Linked Successfully", { id: toastId });
+                setShowInstagramModal(false);
+                window.location.reload(); 
+            } else {
+                throw new Error(data.message);
+            }
+        } catch (error: any) {
+            toast.error(error.message || "Failed to link", { id: toastId });
         }
     };
 
@@ -142,6 +180,84 @@ export default function Integrations() {
                     </Button>
                 </div>
             </Card>
+
+            {/* Instagram Manual Connection Modal */}
+            <AnimatePresence>
+                {showInstagramModal && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setShowInstagramModal(false)}
+                            className="absolute inset-0 bg-dark/80 backdrop-blur-xl"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            className="w-full max-w-xl bg-[#0A0F1D] border border-white/[0.08] rounded-[3rem] p-12 shadow-glass relative z-10 overflow-hidden"
+                        >
+                            <div className="absolute top-0 inset-x-0 h-1 bg-button-gradient" />
+                            
+                            <div className="flex items-center justify-between mb-10">
+                                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20 shadow-soft-glow">
+                                    <Instagram className="w-8 h-8" />
+                                </div>
+                                <button onClick={() => setShowInstagramModal(false)} className="text-heaven-muted hover:text-white transition-colors">
+                                    <XCircle className="w-8 h-8 opacity-20 hover:opacity-100" />
+                                </button>
+                            </div>
+
+                            <h3 className="text-3xl font-bold text-white mb-2">Connect Instagram</h3>
+                            <p className="text-heaven-muted text-xs font-medium mb-10 opacity-60 uppercase tracking-widest">Manual Identity Linking</p>
+
+                            <form onSubmit={handleManualSubmit} className="space-y-8">
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] ml-2">Profile Link</label>
+                                    <input
+                                        type="url"
+                                        placeholder="https://instagram.com/yourhandle"
+                                        className="w-full h-16 bg-white/[0.03] border border-white/[0.08] rounded-2xl px-6 text-sm font-medium focus:border-primary/50 transition-all outline-none"
+                                        value={manualData.profileLink}
+                                        onChange={e => setManualData({...manualData, profileLink: e.target.value})}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] ml-2">Followers</label>
+                                        <input
+                                            type="number"
+                                            placeholder="15000"
+                                            className="w-full h-16 bg-white/[0.03] border border-white/[0.08] rounded-2xl px-6 text-sm font-medium focus:border-primary/50 transition-all outline-none"
+                                            value={manualData.followers}
+                                            onChange={e => setManualData({...manualData, followers: e.target.value})}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] ml-2">Engagement %</label>
+                                        <input
+                                            type="number"
+                                            step="0.1"
+                                            placeholder="4.8"
+                                            className="w-full h-16 bg-white/[0.03] border border-white/[0.08] rounded-2xl px-6 text-sm font-medium focus:border-primary/50 transition-all outline-none"
+                                            value={manualData.engagementRate}
+                                            onChange={e => setManualData({...manualData, engagementRate: e.target.value})}
+                                        />
+                                    </div>
+                                </div>
+
+                                <Button type="submit" variant="primary" className="w-full h-18 rounded-[1.75rem] font-bold text-[10px] uppercase tracking-[0.4em] shadow-soft-glow hover:scale-[1.02] active:scale-[0.98] transition-all">
+                                    Establish Neural Link
+                                </Button>
+                            </form>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

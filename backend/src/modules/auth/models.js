@@ -25,9 +25,15 @@ const userSchema = new mongoose.Schema({
     of: Boolean,
     default: {}
   },
+  instagram: {
+    username: { type: String },
+    profileLink: { type: String },
+    followers: { type: Number, default: 0 },
+    engagementRate: { type: Number, default: 0 },
+    isConnected: { type: Boolean, default: false }
+  },
+  // Legacy fields (optional: keeping for compatibility during transition)
   instagramConnected: { type: Boolean, default: false },
-  instagramUsername: { type: String },
-  instagramAccessToken: { type: String },
   followers: { type: Number, default: 0 },
   engagement: { type: Number, default: 0 }
 }, { timestamps: true });

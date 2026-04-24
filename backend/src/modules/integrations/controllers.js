@@ -65,4 +65,51 @@ const getIntegrations = async (req, res, next) => {
   }
 };
 
-module.exports = { connectPlatform, getIntegrations };
+const saveInstagramData = async (req, res, next) => {
+  try {
+    const { profileLink, followers, engagementRate } = req.body;
+    
+    if (!profileLink) {
+      return res.status(400).json({ success: false, message: 'Profile link is required' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Extract username from link (e.g. https://instagram.com/username)
+    let username = 'creator';
+    try {
+      const url = new URL(profileLink);
+      username = url.pathname.replace(/\//g, '') || 'creator';
+    } catch (e) {
+      username = profileLink.split('/').filter(Boolean).pop() || 'creator';
+    }
+
+    user.instagram = {
+      username,
+      profileLink,
+      followers: parseInt(followers) || 0,
+      engagementRate: parseFloat(engagementRate) || 0,
+      isConnected: true
+    };
+
+    // Keep integrations map in sync
+    if (!user.integrations) user.integrations = new Map();
+    user.integrations.set('instagram', true);
+
+    // Update legacy fields for backward compatibility
+    user.instagramConnected = true;
+    user.followers = parseInt(followers) || 0;
+    user.engagement = parseFloat(engagementRate) || 0;
+
+    await user.save();
+
+    res.json({ success: true, message: 'Instagram linked successfully', data: user.instagram });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { connectPlatform, getIntegrations, saveInstagramData };
