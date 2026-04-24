@@ -15,7 +15,7 @@ router.post('/resend-otp', authController.resendOTP);
 router.post('/verify-otp', authController.verifyOTP);
 
 // Google OAuth
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+router.get('/google', passport.authenticate('google', { scope: ['openid', 'profile', 'email'] }));
 router.get('/google/callback', 
   passport.authenticate('google', { session: false, failureRedirect: '/login' }),
   (req, res) => {

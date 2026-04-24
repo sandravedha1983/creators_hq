@@ -7,7 +7,8 @@ const jwt = require('jsonwebtoken');
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: "https://creators-hq-wz85.onrender.com/auth/google/callback"
+  callbackURL: "https://creators-hq-wz85.onrender.com/auth/google/callback",
+  scope: ['openid', 'profile', 'email']
 },
   async (accessToken, refreshToken, profile, done) => {
     try {
