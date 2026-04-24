@@ -39,35 +39,34 @@ const Dashboard = {
   },
 
   async getCreatorStats(creatorId) {
-    const cId = new mongoose.Types.ObjectId(creatorId);
+    const User = require('../auth/models');
+    const user = await User.findById(creatorId);
     
-    // Fetch real analytics from MongoDB
-    const analytics = await Analytics.findOne({ userId: cId });
-    
-    if (!analytics) {
-      return {
-        followers: 1200,
-        followersGrowth: '+12%',
-        engagement: 8.5,
-        engagementGrowth: '+5%',
-        earnings: 2500,
-        earningsGrowth: '+24%',
-        growthScore: 78,
-        growthScoreGrowth: '+18%'
-      };
-    }
+    if (!user) return null;
+
+    const instagram = user.instagram || {
+      followers: 0,
+      engagementRate: 0,
+      isConnected: false
+    };
 
     return {
-      followers: analytics.followers,
-      followersGrowth: '+12%',
-      engagement: analytics.engagement,
-      engagementGrowth: '+5%',
-      earnings: analytics.earnings,
-      earningsGrowth: '+24%',
-      growthScore: analytics.growthScore,
-      growthScoreGrowth: '+18%',
-      instagramConnected: analytics.instagramData?.connected || false,
-      instagramUsername: analytics.instagramData?.username
+      username: user.name,
+      followers: instagram.followers,
+      followersGrowth: instagram.isConnected ? '+0%' : 'N/A',
+      engagement: instagram.engagementRate,
+      engagementGrowth: instagram.isConnected ? '+0%' : 'N/A',
+      earnings: 0, // Zeroed out as per "No Dummy Data" rule
+      earningsGrowth: 'N/A',
+      growthScore: 0, // Zeroed out as per "No Dummy Data" rule
+      growthScoreGrowth: 'N/A',
+      instagram: {
+        username: instagram.username,
+        profileLink: instagram.profileLink,
+        followers: instagram.followers,
+        engagementRate: instagram.engagementRate,
+        isConnected: instagram.isConnected
+      }
     };
   }
 };

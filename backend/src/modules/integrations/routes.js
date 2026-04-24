@@ -7,6 +7,7 @@ const router = express.Router();
 router.use(authenticate);
 
 router.post('/connect', controllers.connectPlatform);
+router.post('/instagram', controllers.saveInstagramData);
 router.get('/', controllers.getIntegrations);
 
 module.exports = router;

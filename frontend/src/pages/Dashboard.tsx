@@ -52,10 +52,30 @@ export default function Dashboard() {
 
     // Map API stats to display stats
     const stats = statsData ? [
-        { label: 'Total Followers', value: statsData.followers.toLocaleString(), growth: statsData.followersGrowth, subtext: 'Social reach' },
-        { label: 'Engagement Rate', value: `${statsData.engagement}%`, growth: statsData.engagementGrowth, subtext: 'Interaction score' },
-        { label: 'Total Earnings', value: `₹${(statsData.earnings * 80).toLocaleString()}`, growth: statsData.earningsGrowth, subtext: 'Monthly revenue' },
-        { label: 'Growth Score', value: statsData.growthScore.toString(), growth: statsData.growthScoreGrowth, subtext: 'Platform momentum' }
+        { 
+            label: 'Total Followers', 
+            value: statsData.instagram?.isConnected ? statsData.instagram.followers.toLocaleString() : '---', 
+            growth: statsData.instagram?.isConnected ? statsData.followersGrowth : 'N/A', 
+            subtext: statsData.instagram?.isConnected ? 'Social reach' : 'Connect Instagram' 
+        },
+        { 
+            label: 'Engagement Rate', 
+            value: statsData.instagram?.isConnected ? `${statsData.instagram.engagementRate}%` : '---', 
+            growth: statsData.instagram?.isConnected ? statsData.engagementGrowth : 'N/A', 
+            subtext: statsData.instagram?.isConnected ? 'Interaction score' : 'Connect Instagram' 
+        },
+        { 
+            label: 'Total Earnings', 
+            value: statsData.instagram?.isConnected ? `₹${(statsData.earnings * 80).toLocaleString()}` : '₹0', 
+            growth: 'N/A', 
+            subtext: 'Available after Business link' 
+        },
+        { 
+            label: 'Growth Score', 
+            value: statsData.instagram?.isConnected ? statsData.growthScore.toString() : '0', 
+            growth: 'N/A', 
+            subtext: 'Available after Business link' 
+        }
     ] : [];
 
     useEffect(() => {
@@ -69,11 +89,15 @@ export default function Dashboard() {
     const topContent: any[] = statsData?.topContent || [];
 
     const handleExport = () => {
+        if (!statsData?.instagram?.isConnected) {
+            toast.error("Connect Instagram to enable data export.");
+            return;
+        }
         console.log("Initiating data export sequence...");
         const toastId = toast.loading("Preparing neural data packet...");
         
         setTimeout(() => {
-            toast.success("Data exported successfully to local storage.", { id: toastId });
+            toast.success("Data exported successfully.", { id: toastId });
             console.log("Export complete.");
         }, 1500);
     };
@@ -89,6 +113,17 @@ export default function Dashboard() {
                         {loading ? 'Synchronizing...' : 'System Ready'}
                     </div>
                 </div>
+                {statsData?.instagram?.isConnected && (
+                    <div className="px-6 py-3 bg-primary/10 border border-primary/20 rounded-2xl backdrop-blur-xl flex items-center gap-4 shadow-soft-glow">
+                        <div className="text-right">
+                            <p className="text-[8px] font-bold text-heaven-muted uppercase tracking-widest opacity-50">Active Origin</p>
+                            <p className="text-xs font-black text-primary uppercase">@{statsData.instagram.username}</p>
+                        </div>
+                        <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary border border-primary/30">
+                            <ArrowUpRight className="w-5 h-5" />
+                        </div>
+                    </div>
+                )}
             </div>
 
             {loading ? (
@@ -96,18 +131,15 @@ export default function Dashboard() {
                     <Zap className="w-20 h-20 text-primary opacity-20" />
                     <p className="text-[10px] font-black uppercase tracking-[0.5em] text-heaven-muted">Fetching Real-Time Intelligence...</p>
                 </div>
-            ) : ((isAnyConnected || statsData) && stats.length > 0) ? (
+            ) : (
                 <>
                     {/* Stats Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                         {stats.map((stat, i) => (
-                            <Card key={i} className="p-8 group relative overflow-hidden">
-                                {i === 0 && statsData?.instagramConnected && (
-                                    <div className="absolute top-4 right-4 flex items-center gap-2 px-2 py-1 rounded-md bg-primary/20 text-primary text-[8px] font-bold uppercase tracking-widest border border-primary/20 animate-pulse">
-                                        <Zap className="w-2.5 h-2.5" />
-                                        Live: @{statsData.instagramUsername}
-                                    </div>
-                                )}
+                            <Card key={i} className={cn(
+                                "p-8 group relative overflow-hidden transition-all duration-500",
+                                !statsData?.instagram?.isConnected && i > 1 && "opacity-40 grayscale"
+                            )}>
                                 <div className="flex items-center justify-between mb-8">
                                     <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 bg-primary/10 text-primary border border-primary/20 shadow-glass")}>
                                         <Zap className="w-7 h-7" />
@@ -142,10 +174,12 @@ export default function Dashboard() {
                                     {['7D', '30D', '90D', '6M', '1Y'].map(t => (
                                         <button 
                                             key={t} 
+                                            disabled={!statsData?.instagram?.isConnected}
                                             onClick={() => setActiveTimeframe(t)}
                                             className={cn(
                                                 "px-3 sm:px-4 py-2 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all", 
-                                                t === activeTimeframe ? "bg-primary text-white shadow-soft-glow" : "text-heaven-muted hover:text-heaven-text hover:bg-white/[0.04]"
+                                                t === activeTimeframe && statsData?.instagram?.isConnected ? "bg-primary text-white shadow-soft-glow" : "text-heaven-muted hover:text-heaven-text hover:bg-white/[0.04]",
+                                                !statsData?.instagram?.isConnected && "opacity-20 cursor-not-allowed"
                                             )}
                                         >
                                             {t}
@@ -154,14 +188,14 @@ export default function Dashboard() {
                                 </div>
                             </div>
                             <div className="flex-1 flex items-center justify-center relative">
-                                {!statsData?.instagramConnected ? (
+                                {!statsData?.instagram?.isConnected ? (
                                     <div className="w-full h-full flex flex-col items-center justify-center text-center space-y-8 p-12 bg-white/[0.01] rounded-[2.5rem] border border-dashed border-white/10">
                                         <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center text-heaven-muted opacity-20">
                                             <TrendingUp className="w-12 h-12" />
                                         </div>
                                         <div className="space-y-4 max-w-xs">
-                                            <h4 className="text-sm font-bold uppercase tracking-widest">Connect Instagram</h4>
-                                            <p className="text-xs text-heaven-muted font-medium opacity-60">Unlock deep behavioral analytics and real-time follower sentiment by linking your account.</p>
+                                            <h4 className="text-sm font-bold uppercase tracking-widest">Connection Required</h4>
+                                            <p className="text-xs text-heaven-muted font-medium opacity-60">Insight modules are currently dormant. Establish a platform link to begin real-time data ingestion.</p>
                                         </div>
                                         <Button 
                                             onClick={() => window.location.href = '/integrations'}

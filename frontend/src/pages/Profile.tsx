@@ -139,23 +139,50 @@ export default function Profile() {
                         <h4 className="text-[10px] font-bold text-heaven-muted uppercase tracking-[0.4em] mb-10 ml-2 opacity-40 relative z-10 text-center">Social Link Registry</h4>
                         <div className="space-y-6 relative z-10">
                             {[
-                                { icon: Instagram, key: 'instagram', label: 'Instagram', color: 'text-primary' },
+                                { 
+                                    icon: Instagram, 
+                                    key: 'instagram', 
+                                    label: 'Instagram', 
+                                    color: 'text-primary',
+                                    isConnected: user?.instagram?.isConnected,
+                                    username: user?.instagram?.username,
+                                    link: user?.instagram?.profileLink
+                                },
                                 { icon: Youtube, key: 'youtube', label: 'YouTube', color: 'text-secondary' },
                                 { icon: Linkedin, key: 'linkedin', label: 'LinkedIn', color: 'text-accent' },
-                            ].map((item) => (
-                                <div key={item.key} className="flex items-center gap-4 group/social">
-                                    <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border border-white/[0.08] bg-white/[0.02] transition-all group-hover/social:bg-white/[0.05]", item.color)}>
-                                        <item.icon className="w-6 h-6" />
+                            ].map((item: any) => (
+                                <div key={item.key} className="flex flex-col gap-3">
+                                    <div className="flex items-center gap-4 group/social">
+                                        <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border border-white/[0.08] bg-white/[0.02] transition-all group-hover/social:bg-white/[0.05]", item.color)}>
+                                            <item.icon className="w-6 h-6" />
+                                        </div>
+                                        {item.isConnected ? (
+                                            <div className="flex-1 flex flex-col justify-center">
+                                                <p className="text-[9px] font-bold text-primary uppercase tracking-widest mb-1">CONNECTED</p>
+                                                <a 
+                                                    href={item.link} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer" 
+                                                    className="text-[11px] font-bold text-heaven-text hover:text-primary transition-all"
+                                                >
+                                                    @{item.username}
+                                                </a>
+                                            </div>
+                                        ) : (
+                                            <Input
+                                                value={form.socials[item.key as keyof typeof form.socials]}
+                                                onChange={e => setForm({
+                                                    ...form,
+                                                    socials: { ...form.socials, [item.key]: e.target.value }
+                                                })}
+                                                placeholder={`@username`}
+                                                className="h-14 border-white/[0.08] bg-white/[0.02] rounded-2xl text-[10px] font-bold text-heaven-text uppercase tracking-widest placeholder:text-heaven-muted/10 focus:border-primary/30"
+                                            />
+                                        )}
                                     </div>
-                                    <Input
-                                        value={form.socials[item.key as keyof typeof form.socials]}
-                                        onChange={e => setForm({
-                                            ...form,
-                                            socials: { ...form.socials, [item.key]: e.target.value }
-                                        })}
-                                        placeholder={`@username`}
-                                        className="h-14 border-white/[0.08] bg-white/[0.02] rounded-2xl text-[10px] font-bold text-heaven-text uppercase tracking-widest placeholder:text-heaven-muted/10 focus:border-primary/30"
-                                    />
+                                    {item.key === 'instagram' && !item.isConnected && (
+                                        <p className="text-[8px] font-bold text-heaven-muted uppercase tracking-[0.3em] ml-20 opacity-30 italic">Link via Integrations Directory</p>
+                                    )}
                                 </div>
                             ))}
                         </div>
