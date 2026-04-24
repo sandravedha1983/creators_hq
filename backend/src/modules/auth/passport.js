@@ -5,14 +5,14 @@ const User = require('./models');
 const jwt = require('jsonwebtoken');
 
 passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: "https://creators-hq-wz85.onrender.com/auth/google/callback"
-  },
+  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  callbackURL: "https://creators-hq-wz85.onrender.com/auth/google/callback"
+},
   async (accessToken, refreshToken, profile, done) => {
     try {
       let user = await User.findOne({ email: profile.emails[0].value });
-      
+
       if (!user) {
         user = await User.create({
           name: profile.displayName,
@@ -21,13 +21,13 @@ passport.use(new GoogleStrategy({
           password_hash: Math.random().toString(36).substring(7)
         });
       }
-      
+
       const token = jwt.sign(
         { id: user._id, role: user.role },
         process.env.JWT_SECRET,
         { expiresIn: '1d' }
       );
-      
+
       return done(null, { token });
     } catch (err) {
       return done(err, null);
@@ -36,16 +36,16 @@ passport.use(new GoogleStrategy({
 ));
 
 passport.use(new LinkedInStrategy({
-    clientID: process.env.LINKEDIN_CLIENT_ID,
-    clientSecret: process.env.LINKEDIN_CLIENT_SECRET,
-    callbackURL: "https://creators-hq-wz85.onrender.com/auth/linkedin/callback",
-    scope: ['r_liteprofile', 'r_emailaddress']
-  },
+  clientID: process.env.LINKEDIN_CLIENT_ID,
+  clientSecret: process.env.LINKEDIN_CLIENT_SECRET,
+  callbackURL: "https://creators-hq-wz85.onrender.com/auth/linkedin/callback",
+  scope: ["openid", "profile", "email"]
+},
   async (accessToken, refreshToken, profile, done) => {
     try {
       const email = profile.emails[0].value;
       let user = await User.findOne({ email });
-      
+
       if (!user) {
         user = await User.create({
           name: profile.displayName,
@@ -54,13 +54,13 @@ passport.use(new LinkedInStrategy({
           password_hash: Math.random().toString(36).substring(7)
         });
       }
-      
+
       const token = jwt.sign(
         { id: user._id, role: user.role },
         process.env.JWT_SECRET,
         { expiresIn: '1d' }
       );
-      
+
       return done(null, { token });
     } catch (err) {
       return done(err, null);
