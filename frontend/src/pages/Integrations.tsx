@@ -19,23 +19,8 @@ export default function Integrations() {
         setIsSyncing(id);
         
         try {
-            const API_URL = import.meta.env.VITE_API_URL;
-            const response = await fetch(`${API_URL}/api/integrations/connect`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ platform: name.toLowerCase() })
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                await toggleIntegration(id);
-                toast.success(`${name} ${isConnected ? 'Disconnected' : 'Connected Successfully'}`);
-            } else {
-                throw new Error(data.message || "Connection failed");
-            }
+            await toggleIntegration(id);
+            toast.success(`${name} ${isConnected ? 'Disconnected' : 'Connected Successfully'}`);
         } catch (error) {
             console.error(`Failed to link ${name}:`, error);
             toast.error(`Failed to link ${name}. Check your connection.`);

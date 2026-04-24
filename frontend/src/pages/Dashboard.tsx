@@ -101,7 +101,13 @@ export default function Dashboard() {
                     {/* Stats Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                         {stats.map((stat, i) => (
-                            <Card key={i} className="p-8">
+                            <Card key={i} className="p-8 group relative overflow-hidden">
+                                {i === 0 && statsData?.instagramConnected && (
+                                    <div className="absolute top-4 right-4 flex items-center gap-2 px-2 py-1 rounded-md bg-primary/20 text-primary text-[8px] font-bold uppercase tracking-widest border border-primary/20 animate-pulse">
+                                        <Zap className="w-2.5 h-2.5" />
+                                        Live: @{statsData.instagramUsername}
+                                    </div>
+                                )}
                                 <div className="flex items-center justify-between mb-8">
                                     <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 bg-primary/10 text-primary border border-primary/20 shadow-glass")}>
                                         <Zap className="w-7 h-7" />
@@ -124,7 +130,7 @@ export default function Dashboard() {
                         <Card className="lg:col-span-8 p-10 min-h-[450px] flex flex-col">
                             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-12">
                                 <div className="flex items-center gap-4">
-                                    <h3 className="text-xl font-bold text-heaven-text tracking-tight uppercase">Growth</h3>
+                                    <h3 className="text-xl font-bold text-heaven-text tracking-tight uppercase">Platform Pulse</h3>
                                     <button 
                                         onClick={handleExport}
                                         className="p-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-heaven-muted hover:text-primary transition-all shadow-glass"
@@ -148,10 +154,29 @@ export default function Dashboard() {
                                 </div>
                             </div>
                             <div className="flex-1 flex items-center justify-center relative">
-                                <div className="w-full h-full flex flex-col items-center justify-center text-heaven-text/20">
-                                    <TrendingUp className="w-32 h-32 mb-6 opacity-10" />
-                                    <p className="text-xs font-black uppercase tracking-[0.4em]">Connect Platforms to unlock insights</p>
-                                </div>
+                                {!statsData?.instagramConnected ? (
+                                    <div className="w-full h-full flex flex-col items-center justify-center text-center space-y-8 p-12 bg-white/[0.01] rounded-[2.5rem] border border-dashed border-white/10">
+                                        <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center text-heaven-muted opacity-20">
+                                            <TrendingUp className="w-12 h-12" />
+                                        </div>
+                                        <div className="space-y-4 max-w-xs">
+                                            <h4 className="text-sm font-bold uppercase tracking-widest">Connect Instagram</h4>
+                                            <p className="text-xs text-heaven-muted font-medium opacity-60">Unlock deep behavioral analytics and real-time follower sentiment by linking your account.</p>
+                                        </div>
+                                        <Button 
+                                            onClick={() => window.location.href = '/integrations'}
+                                            variant="primary" 
+                                            className="h-14 px-10 rounded-2xl font-bold text-[10px] uppercase tracking-[0.3em]"
+                                        >
+                                            Establish Connection
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div className="w-full h-full flex flex-col items-center justify-center text-heaven-text/20">
+                                        <TrendingUp className="w-32 h-32 mb-6 opacity-10 animate-pulse text-primary" />
+                                        <p className="text-xs font-black uppercase tracking-[0.4em] text-primary/40">Real-time Data Streaming Enabled</p>
+                                    </div>
+                                )}
                             </div>
                         </Card>
 
