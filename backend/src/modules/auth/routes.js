@@ -26,7 +26,7 @@ router.get('/google/callback',
 );
 
 // LinkedIn OAuth
-router.get('/linkedin', passport.authenticate('linkedin', { scope: ['r_liteprofile', 'r_emailaddress'], state: 'SOME_STATE' }));
+router.get('/linkedin', passport.authenticate('linkedin', { scope: ['openid', 'profile', 'email'], state: 'SOME_STATE' }));
 router.get('/linkedin/callback',
   passport.authenticate('linkedin', { session: false, failureRedirect: '/login' }),
   (req, res) => {
