@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
+import { Spinner } from '@/components/ui/Spinner';
 import { Layers, Mail, Lock, Zap, Shield, User, ArrowRight } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import loginVideo from "@/assets/istockphoto-2189725457-640_adpp_is.mp4";
@@ -13,11 +14,13 @@ import loginVideo from "@/assets/istockphoto-2189725457-640_adpp_is.mp4";
 export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
+        setIsLoading(true);
         const toastId = toast.loading('Establishing Neural Link...');
         try {
             await login(email, password);
@@ -25,13 +28,17 @@ export default function Login() {
             navigate('/verify-otp');
         } catch (err: any) {
             toast.error('Neural Mismatch. Check Credentials.', { id: toastId });
+        } finally {
+            setIsLoading(false);
         }
     };
 
     const handleSocialLogin = (service: string) => {
         const baseURL = import.meta.env.VITE_API_URL || "";
-        window.location.href = `${baseURL}/auth/${service.toLowerCase()}`;
+        window.location.href = `${baseURL}/api/auth/${service.toLowerCase()}`;
     };
+
+    if (isLoading) return <Spinner />;
 
     return (
         <div className="min-h-screen bg-dark flex items-center justify-center p-6 relative overflow-hidden font-sans">

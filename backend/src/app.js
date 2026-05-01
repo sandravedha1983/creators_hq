@@ -26,8 +26,12 @@ app.use(cors({
 
 app.use(express.json());
 
-app.use('/auth', require('./modules/auth/routes'));
-app.use('/api', require('./modules/auth/routes'));
+app.use((req, res, next) => {
+    console.log("API HIT:", req.method, req.url);
+    next();
+});
+
+app.use('/api/auth', require('./modules/auth/routes'));
 app.use('/api/verify', require('./modules/verification/routes'));
 app.use('/api/dashboard', require('./modules/dashboard/routes'));
 app.use('/api/integrations', require('./modules/integrations/routes'));
@@ -37,13 +41,12 @@ app.get('/api/test', (req, res) => {
   res.json({ message: 'Backend working' });
 });
 
-app.use('/creators', require('./modules/creators/routes'));
-app.use('/collaborations', require('./modules/collaborations/routes'));
-app.use('/market', require('./modules/market/routes'));
-app.use('/leads', require('./modules/leads/routes'));
-app.use('/analytics', require('./modules/analytics/routes'));
-app.use("/api/ai", require('./modules/ai/routes'));
-app.use('/billing', require('./modules/billing/routes'));
+app.use('/api/creators', require('./modules/creators/routes'));
+app.use('/api/collaborations', require('./modules/collaborations/routes'));
+app.use('/api/market', require('./modules/market/routes'));
+app.use('/api/leads', require('./modules/leads/routes'));
+app.use('/api/analytics', require('./modules/analytics/routes'));
+app.use('/api/billing', require('./modules/billing/routes'));
 app.use('/uploads', express.static('uploads'));
 // app.use('/automation', require('./modules/automation/routes')); // Disable if Redis is not running
 
@@ -54,6 +57,15 @@ app.get("/", (req, res) => {
 
 app.get("/test", (req, res) => {
     res.send("Server working");
+});
+
+// Serve frontend static files
+const frontendDistPath = path.join(__dirname, '../../frontend/dist');
+app.use(express.static(frontendDistPath));
+
+// Catch-all route to serve the React app for SPA routing
+app.get('*', (req, res) => {
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
 });
 
 

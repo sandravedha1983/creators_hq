@@ -20,6 +20,7 @@ import { useAuth } from '@/context/AuthContext';
 import { motion } from 'framer-motion';
 import { cn } from '@/utils/cn';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Spinner } from '@/components/ui/Spinner';
 import { getCreatorDashboard } from '@/services/dashboardService';
 import { useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
@@ -102,6 +103,8 @@ export default function Dashboard() {
         }, 1500);
     };
 
+    if (loading) return <Spinner />;
+
     return (
         <div className="animate-fade-in pb-20 space-y-12">
             {/* Header Area */}
@@ -126,15 +129,8 @@ export default function Dashboard() {
                 )}
             </div>
 
-            {loading ? (
-                <div className="py-40 flex flex-col items-center justify-center space-y-8 animate-pulse">
-                    <Zap className="w-20 h-20 text-primary opacity-20" />
-                    <p className="text-[10px] font-black uppercase tracking-[0.5em] text-heaven-muted">Fetching Real-Time Intelligence...</p>
-                </div>
-            ) : (
-                <>
-                    {/* Stats Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                         {stats.map((stat, i) => (
                             <Card key={i} className={cn(
                                 "p-8 group relative overflow-hidden transition-all duration-500",
@@ -240,17 +236,6 @@ export default function Dashboard() {
                             </Card>
                         </div>
                     </div>
-                </>
-            ) : (
-                <EmptyState 
-                    title="No Data Available"
-                    description="Connect a platform to see real-time insights and unlock the full potential of your digital empire."
-                    icon={Sparkles}
-                    actionLabel="Connect Platforms"
-                    actionPath="/integrations"
-                    className="py-32"
-                />
-            )}
         </div>
     );
 }

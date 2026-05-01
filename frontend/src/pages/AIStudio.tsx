@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/Input';
 import { Sparkles, Send, Copy, RefreshCw, Zap, Brain, Rocket, MessageSquare } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Spinner } from '@/components/ui/Spinner';
 import API from '@/services/api';
 
 export default function AIStudio() {
@@ -44,6 +45,8 @@ export default function AIStudio() {
             toast.success("Copied to synaptic clipboard.");
         }
     };
+
+    if (isLoading) return <Spinner />;
 
     return (
         <div className="space-y-12 animate-fade-in pb-20 max-w-5xl mx-auto">

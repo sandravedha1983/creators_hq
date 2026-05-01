@@ -2,7 +2,7 @@ import API from "./api";
 
 export const registerUser = async (data: any) => {
     try {
-        const res = await API.post("/auth/register", data);
+        const res = await API.post("/api/auth/register", data);
         return res.data;
     } catch (err: any) {
         console.error(err.response?.data || err.message);
@@ -12,7 +12,7 @@ export const registerUser = async (data: any) => {
 
 export const loginUser = async (data: any) => {
     try {
-        const res = await API.post("/auth/login", data);
+        const res = await API.post("/api/auth/login", data);
         if (res.data.token) {
             localStorage.setItem("token", res.data.token);
         }
@@ -24,7 +24,7 @@ export const loginUser = async (data: any) => {
 };
 
 export const getProfile = async () => {
-    const res = await API.get("/auth/profile");
+    const res = await API.get("/api/auth/profile");
     return res.data;
 };
 
@@ -38,7 +38,7 @@ export const resendOTP = async (email: string) => {
 };
 
 export const submitVerification = async (formData: FormData) => {
-    const res = await API.post("/verification/submit", formData, {
+    const res = await API.post("/api/verify/submit", formData, {
         headers: {
             'Content-Type': 'multipart/form-data'
         }
@@ -47,6 +47,6 @@ export const submitVerification = async (formData: FormData) => {
 };
 
 export const getVerificationStatus = async () => {
-    const res = await API.get("/verification/status");
+    const res = await API.get("/api/verify/status");
     return res.data;
 };
