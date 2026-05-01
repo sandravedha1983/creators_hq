@@ -59,14 +59,7 @@ app.get("/test", (req, res) => {
     res.send("Server working");
 });
 
-// Serve frontend static files
-const frontendDistPath = path.join(__dirname, '../../frontend/dist');
-app.use(express.static(frontendDistPath));
-
-// Catch-all route to serve the React app for SPA routing
-app.get('*', (req, res) => {
-    res.sendFile(path.join(frontendDistPath, 'index.html'));
-});
+// No frontend static serving - Frontend is deployed separately on a Static Site
 
 
 app.use(require('./middleware/error'));
