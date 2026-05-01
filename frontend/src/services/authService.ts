@@ -29,11 +29,11 @@ export const getProfile = async () => {
 };
 
 export const sendOTP = async (email: string, otp: string) => {
-    await API.post("/api/send-otp", { email, otp });
+    await API.post("/api/auth/send-otp", { email, otp });
 };
 
 export const resendOTP = async (email: string) => {
-    const res = await API.post("/api/resend-otp", { email });
+    const res = await API.post("/api/auth/resend-otp", { email });
     return res.data;
 };
 
