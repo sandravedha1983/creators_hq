@@ -32,6 +32,7 @@ interface AuthContextType {
     user: User | null;
     isAuthenticated: boolean;
     isVerified: boolean;
+    isInitializing: boolean;
     otp: string | null;
     login: (email: string, password?: string) => Promise<void>;
     signup: (email: string, name: string, role: UserRole, password?: string) => Promise<void>;
@@ -48,6 +49,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [user, setUser] = useState<User | null>(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isVerified, setIsVerified] = useState(false);
+    const [isInitializing, setIsInitializing] = useState(true);
     const { addUser } = useAppContext();
 
     useEffect(() => {
@@ -59,6 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(JSON.parse(storedUser));
             setIsAuthenticated(true);
             setIsVerified(localStorage.getItem('creatorshq_verified') === 'true');
+            setIsInitializing(false);
         } else if (token) {
             // If we have a token but no user data, we should fetch the profile
             getProfile().then(response => {
@@ -69,9 +72,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 localStorage.setItem('creatorshq_user', JSON.stringify(userData));
                 localStorage.setItem('creatorshq_auth', 'true');
                 localStorage.setItem('creatorshq_verified', 'true');
+                setIsInitializing(false);
             }).catch(() => {
                 localStorage.removeItem('token');
+                setIsInitializing(false);
             });
+        } else {
+            setIsInitializing(false);
         }
 
         const handleAuthExpired = () => {
@@ -207,7 +214,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     return (
-        <AuthContext.Provider value={{ user, isAuthenticated, isVerified, otp: null, login, signup, verifyOtp, tokenLogin, logout, updateProfile, resendOtp }}>
+        <AuthContext.Provider value={{ user, isAuthenticated, isVerified, isInitializing, otp: null, login, signup, verifyOtp, tokenLogin, logout, updateProfile, resendOtp }}>
             {children}
         </AuthContext.Provider>
     );
