@@ -21,6 +21,11 @@ interface User {
         linkedin?: string;
     };
     socialHandle?: string;
+    instagram?: {
+        isConnected?: boolean;
+        username?: string;
+        profileLink?: string;
+    };
 }
 
 interface AuthContextType {
