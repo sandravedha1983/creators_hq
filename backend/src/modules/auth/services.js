@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const User = require('./models');
 
 const register = async ({ name, email, password, role }) => {
-  const existingUser = await User.findOne({ email });
+  const existingUser = await User.findOne({ email }).lean();
   if (existingUser) throw new Error('User already exists');
 
   const passwordHash = await bcrypt.hash(password, 10);
@@ -20,7 +20,7 @@ const register = async ({ name, email, password, role }) => {
 };
 
 const login = async ({ email, password }) => {
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email }).lean();
   if (!user) throw new Error('Invalid email or password');
 
   const isValid = await bcrypt.compare(password, user.password_hash);
@@ -46,7 +46,7 @@ const login = async ({ email, password }) => {
 };
 
 const getProfile = async (id) => {
-  const user = await User.findById(id);
+  const user = await User.findById(id).lean();
   return user;
 };
 

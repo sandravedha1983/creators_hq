@@ -84,7 +84,7 @@ export default function Billing() {
             const amountStr = selectedPlan ? selectedPlan.price.replace('₹', '') : '0';
             const amount = parseInt(amountStr) || 0;
 
-            const response = await API.post('/billing/pay', {
+            const response = await API.post('/api/billing/pay', {
                 ...paymentData,
                 amount,
                 currency: 'INR'

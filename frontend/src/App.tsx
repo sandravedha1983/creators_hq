@@ -5,35 +5,35 @@ import { cn } from './utils/cn'
 import { DashboardLayout } from './layouts/DashboardLayout'
 import { LandingPage } from './pages/LandingPage'
 import { Toaster } from 'react-hot-toast';
-import Login from './pages/auth/Login'
-import Signup from './pages/auth/Signup'
-import VerifyOtp from './pages/auth/VerifyOtp'
-import VerificationPage from './pages/auth/VerificationPage'
-import Dashboard from './pages/Dashboard'
-import CRM from './pages/CRM'
-import Content from './pages/Content'
-import Marketplace from './pages/Marketplace'
-import Analytics from './pages/Analytics'
-import DashboardRedirect from './pages/DashboardRedirect'
-import Automation from './pages/Automation'
-import Billing from './pages/Billing'
-import Profile from './pages/Profile'
-import AIStudio from './pages/AIStudio'
-import Messages from './pages/Messages'
-import Notifications from './pages/Notifications'
-import Integrations from './pages/Integrations'
-import Team from './pages/Team'
+import { Suspense, lazy } from 'react';
+import { Spinner } from './components/ui/Spinner';
 
-import { Sidebar } from './components/layout/Sidebar'
-import { Navbar } from './components/layout/Navbar'
-import BrandDashboard from './pages/BrandDashboard'
-import AdminDashboard from './pages/AdminDashboard'
-import Campaigns from './pages/Campaigns'
-import Creators from './pages/Creators'
-import Users from './pages/Users'
-import Reports from './pages/Reports'
+const Login = lazy(() => import('./pages/auth/Login'));
+const Signup = lazy(() => import('./pages/auth/Signup'));
+const VerifyOtp = lazy(() => import('./pages/auth/VerifyOtp'));
+const VerificationPage = lazy(() => import('./pages/auth/VerificationPage'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const CRM = lazy(() => import('./pages/CRM'));
+const Content = lazy(() => import('./pages/Content'));
+const Marketplace = lazy(() => import('./pages/Marketplace'));
+const Analytics = lazy(() => import('./pages/Analytics'));
+const DashboardRedirect = lazy(() => import('./pages/DashboardRedirect'));
+const Automation = lazy(() => import('./pages/Automation'));
+const Billing = lazy(() => import('./pages/Billing'));
+const Profile = lazy(() => import('./pages/Profile'));
+const AIStudio = lazy(() => import('./pages/AIStudio'));
+const Messages = lazy(() => import('./pages/Messages'));
+const Notifications = lazy(() => import('./pages/Notifications'));
+const Integrations = lazy(() => import('./pages/Integrations'));
+const Team = lazy(() => import('./pages/Team'));
 
-// Layout component to wrap dashboards with Sidebar & Navbar
+const BrandDashboard = lazy(() => import('./pages/BrandDashboard'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const Campaigns = lazy(() => import('./pages/Campaigns'));
+const Creators = lazy(() => import('./pages/Creators'));
+const Users = lazy(() => import('./pages/Users'));
+const Reports = lazy(() => import('./pages/Reports'));
+
 import { motion } from "framer-motion";
 
 
@@ -56,47 +56,49 @@ function App() {
                         },
                     }} 
                 />
-                <Routes>
-                    {/* Public Routes */}
-                    <Route path="/" element={<LandingPage />} />
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/signup" element={<Signup />} />
-                    <Route path="/dashboard-redirect" element={<DashboardRedirect />} />
-                    <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout><Dashboard /></DashboardLayout></ProtectedRoute>} />
+                <Suspense fallback={<Spinner />}>
+                    <Routes>
+                        {/* Public Routes */}
+                        <Route path="/" element={<LandingPage />} />
+                        <Route path="/login" element={<Login />} />
+                        <Route path="/signup" element={<Signup />} />
+                        <Route path="/dashboard-redirect" element={<DashboardRedirect />} />
+                        <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout><Dashboard /></DashboardLayout></ProtectedRoute>} />
 
-                    {/* Auth Verification */}
-                    <Route path="/verify-otp" element={<ProtectedRoute><VerifyOtp /></ProtectedRoute>} />
-                    <Route path="/verify-account" element={<ProtectedRoute><VerificationPage /></ProtectedRoute>} />
+                        {/* Auth Verification */}
+                        <Route path="/verify-otp" element={<ProtectedRoute><VerifyOtp /></ProtectedRoute>} />
+                        <Route path="/verify-account" element={<ProtectedRoute><VerificationPage /></ProtectedRoute>} />
 
-                    {/* Creator Specific Routes */}
-                    <Route path="/creator-dashboard" element={<ProtectedRoute allowedRoles={['creator']}><DashboardLayout><Dashboard /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/crm" element={<ProtectedRoute allowedRoles={['creator']}><DashboardLayout><CRM /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/content" element={<ProtectedRoute allowedRoles={['creator']}><DashboardLayout><Content /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/marketplace" element={<ProtectedRoute allowedRoles={['creator']}><DashboardLayout><Marketplace /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/ai-studio" element={<ProtectedRoute allowedRoles={['creator']}><DashboardLayout><AIStudio /></DashboardLayout></ProtectedRoute>} />
+                        {/* Creator Specific Routes */}
+                        <Route path="/creator-dashboard" element={<ProtectedRoute allowedRoles={['creator']}><DashboardLayout><Dashboard /></DashboardLayout></ProtectedRoute>} />
+                        <Route path="/crm" element={<ProtectedRoute allowedRoles={['creator']}><DashboardLayout><CRM /></DashboardLayout></ProtectedRoute>} />
+                        <Route path="/content" element={<ProtectedRoute allowedRoles={['creator']}><DashboardLayout><Content /></DashboardLayout></ProtectedRoute>} />
+                        <Route path="/marketplace" element={<ProtectedRoute allowedRoles={['creator']}><DashboardLayout><Marketplace /></DashboardLayout></ProtectedRoute>} />
+                        <Route path="/ai-studio" element={<ProtectedRoute allowedRoles={['creator']}><DashboardLayout><AIStudio /></DashboardLayout></ProtectedRoute>} />
 
-                    {/* Brand Specific Routes */}
-                    <Route path="/brand-dashboard" element={<ProtectedRoute allowedRoles={['brand']}><DashboardLayout><BrandDashboard /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/campaigns" element={<ProtectedRoute allowedRoles={['brand']}><DashboardLayout><Campaigns /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/creators" element={<ProtectedRoute allowedRoles={['brand']}><DashboardLayout><Creators /></DashboardLayout></ProtectedRoute>} />
+                        {/* Brand Specific Routes */}
+                        <Route path="/brand-dashboard" element={<ProtectedRoute allowedRoles={['brand']}><DashboardLayout><BrandDashboard /></DashboardLayout></ProtectedRoute>} />
+                        <Route path="/campaigns" element={<ProtectedRoute allowedRoles={['brand']}><DashboardLayout><Campaigns /></DashboardLayout></ProtectedRoute>} />
+                        <Route path="/creators" element={<ProtectedRoute allowedRoles={['brand']}><DashboardLayout><Creators /></DashboardLayout></ProtectedRoute>} />
 
-                    {/* Admin Specific Routes */}
-                    <Route path="/admin-dashboard" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><AdminDashboard /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/users" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><Users /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/reports" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><Reports /></DashboardLayout></ProtectedRoute>} />
+                        {/* Admin Specific Routes */}
+                        <Route path="/admin-dashboard" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><AdminDashboard /></DashboardLayout></ProtectedRoute>} />
+                        <Route path="/users" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><Users /></DashboardLayout></ProtectedRoute>} />
+                        <Route path="/reports" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><Reports /></DashboardLayout></ProtectedRoute>} />
 
-                    {/* Shared Functional Hubs */}
-                    <Route path="/analytics" element={<ProtectedRoute><DashboardLayout><Analytics /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/automation" element={<ProtectedRoute><DashboardLayout><Automation /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/billing" element={<ProtectedRoute><DashboardLayout><Billing /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/messages" element={<ProtectedRoute><DashboardLayout><Messages /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/notifications" element={<ProtectedRoute><DashboardLayout><Notifications /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/integrations" element={<ProtectedRoute><DashboardLayout><Integrations /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/team" element={<ProtectedRoute><DashboardLayout><Team /></DashboardLayout></ProtectedRoute>} />
-                    <Route path="/profile" element={<ProtectedRoute><DashboardLayout><Profile /></DashboardLayout></ProtectedRoute>} />
+                        {/* Shared Functional Hubs */}
+                        <Route path="/analytics" element={<ProtectedRoute><DashboardLayout><Analytics /></DashboardLayout></ProtectedRoute>} />
+                        <Route path="/automation" element={<ProtectedRoute><DashboardLayout><Automation /></DashboardLayout></ProtectedRoute>} />
+                        <Route path="/billing" element={<ProtectedRoute><DashboardLayout><Billing /></DashboardLayout></ProtectedRoute>} />
+                        <Route path="/messages" element={<ProtectedRoute><DashboardLayout><Messages /></DashboardLayout></ProtectedRoute>} />
+                        <Route path="/notifications" element={<ProtectedRoute><DashboardLayout><Notifications /></DashboardLayout></ProtectedRoute>} />
+                        <Route path="/integrations" element={<ProtectedRoute><DashboardLayout><Integrations /></DashboardLayout></ProtectedRoute>} />
+                        <Route path="/team" element={<ProtectedRoute><DashboardLayout><Team /></DashboardLayout></ProtectedRoute>} />
+                        <Route path="/profile" element={<ProtectedRoute><DashboardLayout><Profile /></DashboardLayout></ProtectedRoute>} />
 
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                </Suspense>
             </div>
         </Router>
     );

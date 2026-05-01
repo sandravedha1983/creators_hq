@@ -10,10 +10,12 @@ import { useAppContext } from "@/context/AppContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/utils/cn";
 import { toast } from 'react-hot-toast';
+import { Spinner } from "@/components/ui/Spinner";
 
 export default function Integrations() {
     const { integrations, toggleIntegration } = useAppContext();
     const [isSyncing, setIsSyncing] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
     const [showInstagramModal, setShowInstagramModal] = useState(false);
     const [manualData, setManualData] = useState({
         profileLink: '',
@@ -41,6 +43,7 @@ export default function Integrations() {
 
     const handleManualSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setLoading(true);
         const toastId = toast.loading("Linking Instagram...");
         try {
             const API_URL = import.meta.env.VITE_API_URL;
@@ -64,6 +67,8 @@ export default function Integrations() {
             }
         } catch (error: any) {
             toast.error(error.message || "Failed to link", { id: toastId });
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -77,6 +82,8 @@ export default function Integrations() {
             default: return <Globe className="w-6 h-6 hover:scale-110 transition-transform duration-500" />;
         }
     };
+
+    if (loading) return <Spinner />;
 
     return (
         <div className="animate-fade-in pb-20 max-w-6xl mx-auto space-y-16">
