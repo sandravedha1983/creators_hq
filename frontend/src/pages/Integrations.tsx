@@ -18,9 +18,7 @@ export default function Integrations() {
     const [loading, setLoading] = useState(false);
     const [showInstagramModal, setShowInstagramModal] = useState(false);
     const [manualData, setManualData] = useState({
-        profileLink: '',
-        followers: '',
-        engagementRate: ''
+        profileLink: ''
     });
 
     const handleToggle = async (id: string, name: string, isConnected: boolean) => {
@@ -221,7 +219,7 @@ export default function Integrations() {
 
                             <form onSubmit={handleManualSubmit} className="space-y-8">
                                 <div className="space-y-3">
-                                    <label className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] ml-2">Profile Link</label>
+                                    <label className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] ml-2">Instagram Profile Link</label>
                                     <input
                                         type="url"
                                         placeholder="https://instagram.com/yourhandle"
@@ -230,31 +228,6 @@ export default function Integrations() {
                                         onChange={e => setManualData({...manualData, profileLink: e.target.value})}
                                         required
                                     />
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-6">
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] ml-2">Followers</label>
-                                        <input
-                                            type="number"
-                                            placeholder="15000"
-                                            className="w-full h-16 bg-white/[0.03] border border-white/[0.08] rounded-2xl px-6 text-sm font-medium focus:border-primary/50 transition-all outline-none"
-                                            value={manualData.followers}
-                                            onChange={e => setManualData({...manualData, followers: e.target.value})}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] ml-2">Engagement %</label>
-                                        <input
-                                            type="number"
-                                            step="0.1"
-                                            placeholder="4.8"
-                                            className="w-full h-16 bg-white/[0.03] border border-white/[0.08] rounded-2xl px-6 text-sm font-medium focus:border-primary/50 transition-all outline-none"
-                                            value={manualData.engagementRate}
-                                            onChange={e => setManualData({...manualData, engagementRate: e.target.value})}
-                                        />
-                                    </div>
                                 </div>
 
                                 <Button type="submit" variant="primary" className="w-full h-18 rounded-[1.75rem] font-bold text-[10px] uppercase tracking-[0.4em] shadow-soft-glow hover:scale-[1.02] active:scale-[0.98] transition-all">

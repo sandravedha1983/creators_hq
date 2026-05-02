@@ -5,8 +5,7 @@ export const registerUser = async (data: any) => {
         const res = await API.post("/api/auth/register", data);
         return res.data;
     } catch (err: any) {
-        console.error(err.response?.data || err.message);
-        throw err;
+        throw err.response?.data || err;
     }
 };
 
@@ -18,8 +17,20 @@ export const loginUser = async (data: any) => {
         }
         return res.data;
     } catch (err: any) {
-        console.error(err.response?.data || err.message);
-        throw err;
+        throw err.response?.data || err;
+    }
+};
+
+export const adminLogin = async (data: any) => {
+    try {
+        const res = await API.post("/api/auth/admin-login", data);
+        if (res.data.token) {
+            localStorage.setItem("token", res.data.token);
+            localStorage.setItem("role", "admin");
+        }
+        return res.data;
+    } catch (err: any) {
+        throw err.response?.data || err;
     }
 };
 
@@ -28,8 +39,21 @@ export const getProfile = async () => {
     return res.data;
 };
 
-export const sendOTP = async (email: string, otp: string) => {
-    await API.post("/api/auth/send-otp", { email, otp });
+export const sendOTP = async (email: string) => {
+    const res = await API.post("/api/auth/send-otp", { email });
+    return res.data;
+};
+
+export const verifyOTP = async (email: string, otp: string) => {
+    try {
+        const res = await API.post("/api/auth/verify-otp", { email, otp });
+        if (res.data.token) {
+            localStorage.setItem("token", res.data.token);
+        }
+        return res.data;
+    } catch (err: any) {
+        throw err.response?.data || err;
+    }
 };
 
 export const resendOTP = async (email: string) => {

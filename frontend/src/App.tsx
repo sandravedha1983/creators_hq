@@ -17,6 +17,7 @@ const CRM = lazy(() => import('./pages/CRM'));
 const Content = lazy(() => import('./pages/Content'));
 const Marketplace = lazy(() => import('./pages/Marketplace'));
 const Analytics = lazy(() => import('./pages/Analytics'));
+const AdminLogin = lazy(() => import('./pages/auth/AdminLogin'));
 const DashboardRedirect = lazy(() => import('./pages/DashboardRedirect'));
 const Automation = lazy(() => import('./pages/Automation'));
 const Billing = lazy(() => import('./pages/Billing'));
@@ -62,6 +63,7 @@ function App() {
                         <Route path="/" element={<LandingPage />} />
                         <Route path="/login" element={<Login />} />
                         <Route path="/signup" element={<Signup />} />
+                        <Route path="/admin-login" element={<AdminLogin />} />
                         <Route path="/dashboard-redirect" element={<DashboardRedirect />} />
                         <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout><Dashboard /></DashboardLayout></ProtectedRoute>} />
 

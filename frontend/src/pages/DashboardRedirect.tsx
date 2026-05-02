@@ -1,28 +1,30 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { getProfile } from "@/services/authService";
 
-const DashboardRedirect = () => {
+export default function DashboardRedirect() {
   const navigate = useNavigate();
+  const { tokenLogin } = useAuth();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get("token");
 
     if (token) {
-      console.log("Token captured, redirecting to dashboard...");
       localStorage.setItem("token", token);
-      // Hard reload ensures the root AuthContext picks up the new token
-      window.location.href = "/dashboard";
+      
+      // Fetch profile to update AuthContext immediately before navigating
+      getProfile().then(res => {
+          tokenLogin(token, res.data);
+          navigate("/dashboard", { replace: true });
+      }).catch(() => {
+          navigate("/login", { replace: true });
+      });
     } else {
-      console.warn("No token found in URL, redirecting to login.");
-      navigate("/login");
+      navigate("/login", { replace: true });
     }
-  }, []);
+  }, [navigate, tokenLogin]);
 
-  return <div className="min-h-screen bg-dark flex flex-col items-center justify-center space-y-4">
-    <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-    <p className="text-heaven-muted font-bold tracking-widest text-xs uppercase animate-pulse">Establishing Secure Neural Link...</p>
-  </div>;
-};
-
-export default DashboardRedirect;
+  return <div>Signing you in...</div>;
+}

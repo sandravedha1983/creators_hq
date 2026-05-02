@@ -52,8 +52,7 @@ export default function Signup() {
 
     const roles: { id: UserRole; label: string; icon: any; desc: string }[] = [
         { id: 'creator', label: 'Creator', icon: User, desc: 'Manage content & audience' },
-        { id: 'brand', label: 'Brand', icon: Briefcase, desc: 'Find creators & run campaigns' },
-        { id: 'admin', label: 'Admin', icon: ShieldIcon, desc: 'System management' }
+        { id: 'brand', label: 'Brand', icon: Briefcase, desc: 'Find creators & run campaigns' }
     ];
 
     return (

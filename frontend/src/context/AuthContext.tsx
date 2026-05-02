@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAppContext } from './AppContext';
-import { registerUser, loginUser, getProfile, sendOTP, resendOTP } from '@/services/authService';
+import { registerUser, loginUser, getProfile, sendOTP, resendOTP, verifyOTP as verifyOTPService, adminLogin as adminLoginService } from '@/services/authService';
 import { toast } from 'react-hot-toast';
 
 export type UserRole = 'creator' | 'brand' | 'admin';
@@ -35,6 +35,7 @@ interface AuthContextType {
     isInitializing: boolean;
     otp: string | null;
     login: (email: string, password?: string) => Promise<void>;
+    adminLogin: (email: string, password?: string) => Promise<void>;
     signup: (email: string, name: string, role: UserRole, password?: string) => Promise<void>;
     verifyOtp: (otp: string) => Promise<boolean>;
     tokenLogin: (token: string, userData: User) => Promise<void>;
@@ -63,7 +64,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setIsVerified(localStorage.getItem('creatorshq_verified') === 'true');
             setIsInitializing(false);
         } else if (token) {
-            // If we have a token but no user data, we should fetch the profile
             getProfile().then(response => {
                 const userData = response.data;
                 setUser(userData);
@@ -98,22 +98,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 email: response.user.email, 
                 name: response.user.name, 
                 role: response.user.role as UserRole,
-                verificationStatus: response.user.verificationStatus || 'not_submitted',
-                verificationCode: response.user.verificationCode
             };
 
             setUser(userToLogin);
             setIsAuthenticated(true);
             setIsVerified(false);
 
-            // Trigger real backend OTP
-            await sendOTP(email, ""); // We don't need to pass OTP anymore, backend handles it
+            await sendOTP(email);
 
             localStorage.setItem('creatorshq_user', JSON.stringify(userToLogin));
             localStorage.setItem('creatorshq_auth', 'true');
             localStorage.setItem('creatorshq_verified', 'false');
         } catch (error) {
             console.error("Login failed:", error);
+            throw error;
+        }
+    };
+
+    const adminLogin = async (email: string, password?: string) => {
+        try {
+            const response = await adminLoginService({ email, password });
+            const adminUser: User = { 
+                email: response.user.email, 
+                role: 'admin',
+                name: 'Administrator'
+            };
+
+            setUser(adminUser);
+            setIsAuthenticated(true);
+            setIsVerified(true);
+
+            localStorage.setItem('creatorshq_user', JSON.stringify(adminUser));
+            localStorage.setItem('creatorshq_auth', 'true');
+            localStorage.setItem('creatorshq_verified', 'true');
+        } catch (error) {
+            console.error("Admin Login failed:", error);
             throw error;
         }
     };
@@ -132,8 +151,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setIsAuthenticated(true);
             setIsVerified(false);
             
-            // Trigger real backend OTP
-            await sendOTP(email, "");
+            await sendOTP(email);
 
             localStorage.setItem('creatorshq_user', JSON.stringify(newUser));
             localStorage.setItem('creatorshq_auth', 'true');
@@ -145,16 +163,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const verifyOtp = async (inputOtp: string): Promise<boolean> => {
+        if (!user?.email) return false;
         try {
-            const API_URL = import.meta.env.VITE_API_URL;
-            const res = await fetch(`${API_URL}/api/auth/verify-otp`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: user?.email, otp: inputOtp })
-            });
-            const data = await res.json();
+            const data = await verifyOTPService(user.email, inputOtp);
 
             if (data.success) {
+                if (data.token) localStorage.setItem('token', data.token);
                 setIsVerified(true);
                 localStorage.setItem('creatorshq_verified', 'true');
                 return true;
@@ -169,7 +183,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const tokenLogin = async (token: string, userData: User) => {
         setUser(userData);
         setIsAuthenticated(true);
-        setIsVerified(true); // OAuth users are pre-verified
+        setIsVerified(true);
         localStorage.setItem('token', token);
         localStorage.setItem('creatorshq_user', JSON.stringify(userData));
         localStorage.setItem('creatorshq_auth', 'true');
@@ -180,9 +194,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(null);
         setIsAuthenticated(false);
         setIsVerified(false);
+        localStorage.removeItem('token');
         localStorage.removeItem('creatorshq_user');
         localStorage.removeItem('creatorshq_auth');
         localStorage.removeItem('creatorshq_verified');
+        localStorage.removeItem('role');
     };
 
     const updateProfile = (data: Partial<User>) => {
@@ -195,26 +211,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const resendOtp = async (): Promise<boolean> => {
         if (!user?.email) {
-            toast.error("Session identity missing. Please try signing up again.");
+            toast.error("Session identity missing.");
             return false;
         }
         try {
-            console.log(`[CREATORSHQ AUTH] Requesting OTP resend for: ${user.email}`);
             const response = await resendOTP(user.email);
             if (response.success) {
-                toast.success('New verification code sent to your email');
+                toast.success('New verification code sent');
                 return true;
             }
         } catch (error: any) {
-            console.error("[CREATORSHQ AUTH] Resend OTP Error:", error);
-            const message = error.response?.data?.message || "Verification flux failed to resend";
-            toast.error(message);
+            toast.error(error.message || "Failed to resend code");
         }
         return false;
     };
 
     return (
-        <AuthContext.Provider value={{ user, isAuthenticated, isVerified, isInitializing, otp: null, login, signup, verifyOtp, tokenLogin, logout, updateProfile, resendOtp }}>
+        <AuthContext.Provider value={{ user, isAuthenticated, isVerified, isInitializing, otp: null, login, adminLogin, signup, verifyOtp, tokenLogin, logout, updateProfile, resendOtp }}>
             {children}
         </AuthContext.Provider>
     );
