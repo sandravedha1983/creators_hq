@@ -78,6 +78,8 @@ export default function Login() {
                         <div className="relative group/input">
                             <Mail className="absolute left-6 sm:left-7 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-heaven-muted/20 group-focus-within/input:text-primary transition-colors" />
                             <Input
+                                id="email"
+                                name="email"
                                 type="email"
                                 placeholder="name@creatorshq.ai"
                                 value={email}
@@ -96,6 +98,8 @@ export default function Login() {
                         <div className="relative group/input">
                             <Lock className="absolute left-6 sm:left-7 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-heaven-muted/20 group-focus-within/input:text-primary transition-colors" />
                             <Input
+                                id="password"
+                                name="password"
                                 type="password"
                                 placeholder="••••••••"
                                 value={password}

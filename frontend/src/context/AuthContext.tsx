@@ -104,8 +104,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setIsAuthenticated(true);
             setIsVerified(false);
 
-            await sendOTP(email);
-
             localStorage.setItem('creatorshq_user', JSON.stringify(userToLogin));
             localStorage.setItem('creatorshq_auth', 'true');
             localStorage.setItem('creatorshq_verified', 'false');
@@ -151,8 +149,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setIsAuthenticated(true);
             setIsVerified(false);
             
-            await sendOTP(email);
-
             localStorage.setItem('creatorshq_user', JSON.stringify(newUser));
             localStorage.setItem('creatorshq_auth', 'true');
             localStorage.setItem('creatorshq_verified', 'false');

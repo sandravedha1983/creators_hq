@@ -42,33 +42,7 @@ app.get('/api/test', (req, res) => {
   res.json({ message: 'Backend working' });
 });
 
-// Google OAuth
-app.get("/auth/google",
-  passport.authenticate("google", { scope: ["profile", "email"] })
-);
-
-app.get("/auth/google/callback",
-  passport.authenticate("google", { session: false, failureRedirect: '/login' }),
-  (req, res) => {
-    const token = req.user.token;
-    const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
-    res.redirect(`${FRONTEND_URL}/dashboard-redirect?token=${token}`);
-  }
-);
-
-// LinkedIn OAuth
-app.get("/auth/linkedin",
-  passport.authenticate("linkedin", { scope: ["openid", "profile", "email"], state: 'SOME_STATE' })
-);
-
-app.get("/auth/linkedin/callback",
-  passport.authenticate("linkedin", { session: false, failureRedirect: '/login' }),
-  (req, res) => {
-    const token = req.user.token;
-    const frontendURL = (process.env.FRONTEND_URL || 'https://creators-hq.onrender.com').replace(/\/$/, '');
-    res.redirect(`${frontendURL}/dashboard-redirect?token=${token}`);
-  }
-);
+// OAuth routes moved to modules/auth/routes.js
 
 app.use('/api/creators', require('./modules/creators/routes'));
 app.use('/api/collaborations', require('./modules/collaborations/routes'));
@@ -92,8 +66,26 @@ app.get("/test", (req, res) => {
 
 
 app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(500).json({ message: err.message });
+  console.error("ERROR:", err.message);
+  
+  // Handle Zod Validation Errors
+  if (err.name === 'ZodError' || err.errors) {
+    return res.status(400).json({ 
+        success: false, 
+        message: 'Validation failed', 
+        errors: err.errors || err.message 
+    });
+  }
+
+  // Handle Auth Errors
+  if (err.message.includes('Invalid email or password') || err.message.includes('User not found')) {
+    return res.status(401).json({ success: false, message: err.message });
+  }
+
+  res.status(err.status || 500).json({ 
+    success: false, 
+    message: err.message || 'Internal Server Error' 
+  });
 });
 
 const PORT = process.env.PORT || 5000;

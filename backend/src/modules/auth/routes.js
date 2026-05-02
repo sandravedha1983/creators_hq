@@ -15,6 +15,34 @@ router.post('/resend-otp', authController.resendOTP);
 router.post('/verify-otp', authController.verifyOTP);
 router.post('/admin-login', authController.adminLogin);
 
+// Google OAuth
+router.get("/google",
+  passport.authenticate("google", { scope: ["profile", "email"] })
+);
+
+router.get("/google/callback",
+  passport.authenticate("google", { session: false, failureRedirect: '/login' }),
+  (req, res) => {
+    const token = req.user.token;
+    const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+    res.redirect(`${FRONTEND_URL}/dashboard-redirect?token=${token}`);
+  }
+);
+
+// LinkedIn OAuth
+router.get("/linkedin",
+  passport.authenticate("linkedin", { scope: ["openid", "profile", "email"], state: 'SOME_STATE' })
+);
+
+router.get("/linkedin/callback",
+  passport.authenticate("linkedin", { session: false, failureRedirect: '/login' }),
+  (req, res) => {
+    const token = req.user.token;
+    const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+    res.redirect(`${FRONTEND_URL}/dashboard-redirect?token=${token}`);
+  }
+);
+
 router.get('/profile', authenticate, authController.getProfile);
 
 module.exports = router;
