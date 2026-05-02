@@ -24,16 +24,42 @@ const userSchema = new mongoose.Schema({
     of: Boolean,
     default: {}
   },
-  instagram: {
-    username: { type: String },
-    profileLink: { type: String },
-    code: { type: String }, // For CRHQ_XXXX verification
-    verified: { type: Boolean, default: false }
+  socials: {
+    instagram: {
+      url: { type: String },
+      username: { type: String },
+      code: { type: String },
+      verified: { type: Boolean, default: false },
+      verifiedAt: { type: Date }
+    },
+    twitter: {
+      url: { type: String },
+      username: { type: String },
+      code: { type: String },
+      verified: { type: Boolean, default: false },
+      verifiedAt: { type: Date }
+    },
+    linkedin: {
+      url: { type: String },
+      username: { type: String },
+      code: { type: String },
+      verified: { type: Boolean, default: false },
+      verifiedAt: { type: Date }
+    },
+    youtube: {
+      url: { type: String },
+      username: { type: String },
+      code: { type: String },
+      verified: { type: Boolean, default: false },
+      verifiedAt: { type: Date }
+    }
   },
-  // Legacy fields (optional)
-  socialHandle: { type: String },
-  followers: { type: Number, default: 0 },
-  engagement: { type: Number, default: 0 }
+  // Legacy compatibility fields
+  integrations: {
+    type: Map,
+    of: Boolean,
+    default: {}
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);
