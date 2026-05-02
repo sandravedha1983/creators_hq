@@ -147,13 +147,22 @@ export default function Login() {
                         LinkedIn
                     </button>
                 </div>
-                <div className="mt-12 sm:mt-16 text-center text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.3em]">
-                    <p className="text-heaven-muted opacity-80 italic">
+                <div className="mt-12 sm:mt-16 text-center space-y-4">
+                    <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.3em] text-heaven-muted opacity-80 italic">
                         New Member?{' '}
                         <Link to="/signup" className="text-primary hover:text-heaven-text transition-all ml-2 underline underline-offset-8 decoration-primary/30">
                             Create Account
                         </Link>
                     </p>
+                    <div className="pt-2">
+                        <Link 
+                            to="/admin-login" 
+                            className="text-heaven-muted/30 hover:text-primary text-[8px] sm:text-[9px] font-bold uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-2 group"
+                        >
+                            <Shield className="w-3 h-3 group-hover:scale-110 transition-transform" />
+                            Admin Access
+                        </Link>
+                    </div>
                 </div>
             </Card>
         </div>
