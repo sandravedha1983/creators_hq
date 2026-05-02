@@ -12,19 +12,18 @@ export default function DashboardRedirect() {
     const token = params.get("token");
 
     if (token) {
+      console.log("[AUTH] Token found, initializing session...");
       localStorage.setItem("token", token);
       
-      // Fetch profile to update AuthContext immediately before navigating
-      getProfile().then(res => {
-          tokenLogin(token, res.data);
-          navigate("/dashboard", { replace: true });
-      }).catch(() => {
-          navigate("/login", { replace: true });
-      });
+      // Let AuthContext handle the profile fetch after navigation
+      navigate("/dashboard", { replace: true });
+      
+      // Optional: force a refresh if the app state is sticky
+      window.location.reload();
     } else {
       navigate("/login", { replace: true });
     }
-  }, [navigate, tokenLogin]);
+  }, [navigate]);
 
   return <div>Signing you in...</div>;
 }
