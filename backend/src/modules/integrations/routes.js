@@ -7,7 +7,8 @@ const router = express.Router();
 router.use(authenticate);
 
 router.post('/connect', controllers.connectPlatform);
-router.post('/instagram', controllers.saveInstagramData);
+router.post('/instagram/link', controllers.linkInstagram);
+router.post('/instagram/verify', controllers.verifyInstagram);
 router.get('/', controllers.getIntegrations);
 
 module.exports = router;

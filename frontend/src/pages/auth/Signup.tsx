@@ -47,7 +47,7 @@ export default function Signup() {
 
     const handleSocialLogin = (service: string) => {
         const baseURL = import.meta.env.VITE_API_URL || "";
-        window.location.href = `${baseURL}/auth/${service.toLowerCase()}`;
+        window.location.href = `${baseURL}/api/auth/${service.toLowerCase()}`;
     };
 
     const roles: { id: UserRole; label: string; icon: any; desc: string }[] = [
@@ -115,6 +115,8 @@ export default function Signup() {
                         <div className="space-y-4">
                             <label className="text-[11px] font-bold text-primary-light/90 ml-2">Display Name</label>
                             <Input
+                                id="name"
+                                name="name"
                                 placeholder="Your Name"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
@@ -134,6 +136,8 @@ export default function Signup() {
                     <div className="space-y-4">
                         <label className="text-[11px] font-bold text-primary-light/90 ml-2">Email Identity</label>
                         <Input
+                            id="email"
+                            name="email"
                             type="email"
                             placeholder="name@creatorshq.ai"
                             value={email}
@@ -148,6 +152,8 @@ export default function Signup() {
                         <div className="relative group/input">
                             <Lock className="absolute left-7 top-1/2 -translate-y-1/2 w-5 h-5 text-heaven-muted/20 group-focus-within/input:text-primary transition-colors" />
                             <Input
+                                id="password"
+                                name="password"
                                 type="password"
                                 placeholder="••••••••"
                                 value={password}

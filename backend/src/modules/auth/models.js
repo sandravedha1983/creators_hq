@@ -9,6 +9,7 @@ const userSchema = new mongoose.Schema({
     enum: ["brand", "creator", "admin"], 
     default: "creator" 
   },
+  isVerified: { type: Boolean, default: false },
   isBlocked: { type: Boolean, default: false },
   socialHandle: { type: String },
   verificationStatus: {
@@ -26,12 +27,11 @@ const userSchema = new mongoose.Schema({
   instagram: {
     username: { type: String },
     profileLink: { type: String },
-    followers: { type: Number, default: 0 },
-    engagementRate: { type: Number, default: 0 },
-    isConnected: { type: Boolean, default: false }
+    code: { type: String }, // For CRHQ_XXXX verification
+    verified: { type: Boolean, default: false }
   },
-  // Legacy fields (optional: keeping for compatibility during transition)
-  instagramConnected: { type: Boolean, default: false },
+  // Legacy fields (optional)
+  socialHandle: { type: String },
   followers: { type: Number, default: 0 },
   engagement: { type: Number, default: 0 }
 }, { timestamps: true });

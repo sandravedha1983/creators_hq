@@ -16,7 +16,28 @@ const register = async (req, res, next) => {
       userId: user._id
     });
 
-    res.status(201).json({ success: true, data: user });
+    // Generate and send OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 5 * 60000); // 5 minutes
+
+    await Otp.findOneAndUpdate(
+      { email: user.email },
+      { otp, expiresAt },
+      { upsert: true, new: true }
+    );
+
+    await sendOTPEmail(user.email, otp);
+    console.log(`[AUTH] Registration OTP sent to ${user.email}`);
+
+    res.status(201).json({ 
+        success: true, 
+        message: 'Registration successful. OTP sent.',
+        user: {
+            name: user.name,
+            email: user.email,
+            role: user.role
+        }
+    });
   } catch (error) {
     next(error);
   }
@@ -25,8 +46,36 @@ const register = async (req, res, next) => {
 const login = async (req, res, next) => {
   try {
     const validatedData = loginSchema.parse(req.body);
-    const { token, user } = await authService.login(validatedData);
-    res.json({ success: true, token, user });
+    const user = await authService.login(validatedData);
+    
+    // Credentials valid, now send OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 5 * 60000); // 5 minutes
+
+    console.log(`[AUTH] Saving OTP for ${user.email}...`);
+    await Otp.findOneAndUpdate(
+      { email: user.email },
+      { otp, expiresAt },
+      { upsert: true, new: true }
+    );
+
+    console.log(`[AUTH] Sending Email to ${user.email}...`);
+    // Attempt to send email, but don't let it hang the whole request
+    sendOTPEmail(user.email, otp).catch(err => {
+        console.error(`[MAIL ERROR] Failed to send to ${user.email}:`, err.message);
+    });
+
+    console.log(`[AUTH] Login success response for ${user.email}`);
+
+    res.json({ 
+        success: true, 
+        message: 'Credentials verified. OTP sent.',
+        user: {
+            name: user.name,
+            email: user.email,
+            role: user.role
+        }
+    });
   } catch (error) {
     next(error);
   }
@@ -46,16 +95,12 @@ const sendOTP = async (req, res, next) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
 
-    // Check if user exists (Optional: user might want to sign up with OTP)
-    // For now, let's assume they must be registered as per current logic
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
 
-    // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 5 * 60000); // 5 minutes
 
-    // Save in DB (Replace existing if any)
     await Otp.findOneAndUpdate(
       { email },
       { otp, expiresAt },
@@ -63,8 +108,6 @@ const sendOTP = async (req, res, next) => {
     );
 
     await sendOTPEmail(email, otp);
-    console.log(`[AUTH] Secure OTP generated and sent to ${email}`);
-
     res.json({ success: true, message: 'OTP sent successfully' });
   } catch (error) {
     next(error);
@@ -72,7 +115,6 @@ const sendOTP = async (req, res, next) => {
 };
 
 const resendOTP = async (req, res, next) => {
-  // Re-using sendOTP logic for resend
   return sendOTP(req, res, next);
 };
 
@@ -92,14 +134,17 @@ const verifyOTP = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'OTP Expired' });
     }
 
-    // Match found and valid
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-    // Delete OTP after success
+    // Mark as verified if not already
+    if (!user.isVerified) {
+        user.isVerified = true;
+        await user.save();
+    }
+
     await Otp.deleteOne({ _id: otpRecord._id });
 
-    // Generate JWT
     const token = jwt.sign(
       { id: user._id, role: user.role },
       process.env.JWT_SECRET,
