@@ -1,19 +1,19 @@
 const authService = require('./services');
 const { registerSchema, loginSchema } = require('./validations');
 const Analytics = require('../analytics/models');
+const Otp = require('./Otp');
+const jwt = require('jsonwebtoken');
+const { sendOTP: sendOTPEmail } = require('../../utils/mailer');
+const User = require('./models');
 
 const register = async (req, res, next) => {
   try {
     const validatedData = registerSchema.parse(req.body);
     const user = await authService.register(validatedData);
     
-    // Initialize Analytics for the new user
+    // Initialize empty Analytics for the new user
     await Analytics.create({
-      userId: user._id,
-      followers: 1200,
-      engagement: 8.5,
-      earnings: 2500,
-      growthScore: 78
+      userId: user._id
     });
 
     res.status(201).json({ success: true, data: user });
@@ -41,65 +41,39 @@ const getProfile = async (req, res, next) => {
   }
 };
 
-const { sendOTPEmail } = require('../../utils/mailer');
-
-const User = require('./models');
-
 const sendOTP = async (req, res, next) => {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
 
+    // Check if user exists (Optional: user might want to sign up with OTP)
+    // For now, let's assume they must be registered as per current logic
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ success: false, message: 'Neural link failed. User not found.' });
+    if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
 
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiry = new Date(Date.now() + 5 * 60000); // 5 minutes
+    const expiresAt = new Date(Date.now() + 5 * 60000); // 5 minutes
 
-    user.otp = otp;
-    user.otp_expiry = otpExpiry;
-    await user.save();
+    // Save in DB (Replace existing if any)
+    await Otp.findOneAndUpdate(
+      { email },
+      { otp, expiresAt },
+      { upsert: true, new: true }
+    );
 
     await sendOTPEmail(email, otp);
     console.log(`[AUTH] Secure OTP generated and sent to ${email}`);
 
-    res.json({ success: true, message: 'Neural Access Code sent successfully' });
+    res.json({ success: true, message: 'OTP sent successfully' });
   } catch (error) {
     next(error);
   }
 };
 
 const resendOTP = async (req, res, next) => {
-  try {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
-
-    const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-
-    const now = new Date();
-    if (user.last_otp_resend && (now - user.last_otp_resend) < 60000) {
-      const waitTime = Math.ceil((60000 - (now - user.last_otp_resend)) / 1000);
-      return res.status(429).json({ 
-        success: false, 
-        message: `Please wait ${waitTime} seconds before resending` 
-      });
-    }
-
-    const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiry = new Date(Date.now() + 5 * 60000); // 5 minutes
-
-    user.otp = newOtp;
-    user.otp_expiry = otpExpiry;
-    user.last_otp_resend = now;
-    await user.save();
-
-    await sendOTPEmail(email, newOtp);
-    res.json({ success: true, message: 'New Access Code sent' });
-  } catch (error) {
-    next(error);
-  }
+  // Re-using sendOTP logic for resend
+  return sendOTP(req, res, next);
 };
 
 const verifyOTP = async (req, res, next) => {
@@ -107,25 +81,62 @@ const verifyOTP = async (req, res, next) => {
     const { email, otp } = req.body;
     if (!email || !otp) return res.status(400).json({ success: false, message: 'Email and Code required' });
 
+    const otpRecord = await Otp.findOne({ email, otp });
+    
+    if (!otpRecord) {
+      return res.status(400).json({ success: false, message: 'Invalid OTP' });
+    }
+
+    if (new Date() > otpRecord.expiresAt) {
+      await Otp.deleteOne({ _id: otpRecord._id });
+      return res.status(400).json({ success: false, message: 'OTP Expired' });
+    }
+
+    // Match found and valid
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ success: false, message: 'Identity not found' });
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-    if (user.otp !== otp) {
-      return res.status(400).json({ success: false, message: 'Neural Mismatch. Invalid Code.' });
-    }
+    // Delete OTP after success
+    await Otp.deleteOne({ _id: otpRecord._id });
 
-    if (new Date() > user.otp_expiry) {
-      return res.status(400).json({ success: false, message: 'Neural Link Expired. Request new code.' });
-    }
+    // Generate JWT
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '1d' }
+    );
 
-    user.otp = undefined;
-    user.otp_expiry = undefined;
-    await user.save();
-
-    res.json({ success: true, message: 'Neural Link Established' });
+    res.json({ 
+      success: true, 
+      token, 
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      },
+      message: 'Authentication Successful' 
+    });
   } catch (error) {
     next(error);
   }
 };
 
-module.exports = { register, login, getProfile, sendOTP, resendOTP, verifyOTP };
+const adminLogin = async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+    if (email === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
+      const token = jwt.sign(
+        { id: 'admin', role: 'admin' },
+        process.env.JWT_SECRET,
+        { expiresIn: '1d' }
+      );
+      return res.json({ success: true, token, user: { email, role: 'admin' } });
+    }
+    res.status(401).json({ success: false, message: 'Invalid Admin Credentials' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { register, login, getProfile, sendOTP, resendOTP, verifyOTP, adminLogin };

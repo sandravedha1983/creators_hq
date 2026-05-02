@@ -9,9 +9,7 @@ const userSchema = new mongoose.Schema({
     enum: ["brand", "creator", "admin"], 
     default: "creator" 
   },
-  otp: { type: String },
-  otp_expiry: { type: Date },
-  last_otp_resend: { type: Date },
+  isBlocked: { type: Boolean, default: false },
   socialHandle: { type: String },
   verificationStatus: {
     type: String,

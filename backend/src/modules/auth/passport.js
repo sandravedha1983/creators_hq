@@ -7,8 +7,8 @@ const jwt = require('jsonwebtoken');
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: "https://creators-hq-wz85.onrender.com/api/auth/google/callback",
-  scope: ['openid', 'profile', 'email']
+  callbackURL: process.env.GOOGLE_CALLBACK_URL,
+  scope: ['profile', 'email']
 },
   async (accessToken, refreshToken, profile, done) => {
     try {
@@ -39,7 +39,7 @@ passport.use(new GoogleStrategy({
 passport.use(new LinkedInStrategy({
   clientID: process.env.LINKEDIN_CLIENT_ID,
   clientSecret: process.env.LINKEDIN_CLIENT_SECRET,
-  callbackURL: "https://creators-hq-wz85.onrender.com/api/auth/linkedin/callback",
+  callbackURL: "https://creators-hq-wz85.onrender.com/auth/linkedin/callback",
   scope: ["openid", "profile", "email"]
 },
   async (accessToken, refreshToken, profile, done) => {
@@ -68,13 +68,5 @@ passport.use(new LinkedInStrategy({
     }
   }
 ));
-
-passport.serializeUser((data, done) => {
-  done(null, data);
-});
-
-passport.deserializeUser((data, done) => {
-  done(null, data);
-});
 
 module.exports = passport;
