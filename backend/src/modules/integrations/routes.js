@@ -6,9 +6,14 @@ const router = express.Router();
 
 router.use(authenticate);
 
+// Legacy/Generic connect
 router.post('/connect', controllers.connectPlatform);
-router.post('/instagram/link', controllers.linkInstagram);
-router.post('/instagram/verify', controllers.verifyInstagram);
+
+// Unified Social Verification Flow
+router.post('/link', controllers.linkSocial);
+router.post('/verify', controllers.verifySocial);
+
+// Status
 router.get('/', controllers.getIntegrations);
 
 module.exports = router;

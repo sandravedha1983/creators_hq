@@ -1,145 +1,171 @@
 const User = require('../auth/models');
-const axios = require('axios');
+const { extractUsername, profileUrl, fetchHtml } = require('../../utils/social');
 const cheerio = require('cheerio');
 
-// POST /api/integrations/instagram/link
-// Sets up the initial link and generates a verification code
-const linkInstagram = async (req, res, next) => {
+/**
+ * POST /api/integrations/link
+ * Generates a code and links a social profile without verifying.
+ */
+const linkSocial = async (req, res, next) => {
   try {
-    const { profileLink } = req.body;
-    if (!profileLink) return res.status(400).json({ success: false, message: 'Profile link is required' });
+    const { platform, url } = req.body;
 
-    // Robust Username Extraction
-    let username = "";
-    try {
-        const url = new URL(profileLink);
-        username = url.pathname.split('/').filter(Boolean)[0];
-    } catch (e) {
-        // Fallback for non-standard links
-        username = profileLink.split('instagram.com/')[1]?.split('/')[0]?.split('?')[0];
+    if (!platform || !url) {
+      return res.status(400).json({ success: false, message: "platform and url required" });
     }
-    
-    if (!username) return res.status(400).json({ success: false, message: 'Could not extract username from link' });
+
+    const username = extractUsername(url, platform);
+    if (!username) {
+      return res.status(400).json({ success: false, message: "Invalid profile URL" });
+    }
+
+    const code = "CRHQ_" + Math.random().toString(36).slice(2, 7).toUpperCase();
 
     const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-    // Generate Unique Code
-    const code = "CRHQ_" + Math.random().toString(36).substring(2, 7).toUpperCase();
+    // Initialize socials map if missing (though schema has it)
+    if (!user.socials) user.socials = {};
 
-    user.instagram = {
+    user.socials[platform] = {
+      url,
       username,
-      profileLink,
       code,
-      verified: false // ALWAYS false until bio check passes
+      verified: false // ALWAYS false initially
     };
 
+    // Mark as modified for Map/Nested objects if necessary (Mongoose requirement)
+    user.markModified(`socials.${platform}`);
     await user.save();
 
-    res.json({
+    return res.json({
       success: true,
       verified: false,
       code,
-      username
+      message: `Linked @${username}. Add code to bio, then verify.`
     });
   } catch (error) {
     next(error);
   }
 };
 
-// POST /api/integrations/instagram/verify
-// Accepts { username, code } and validates against actual Instagram bio content
-const verifyInstagram = async (req, res, next) => {
+/**
+ * POST /api/integrations/verify
+ * Scrapes the profile to find the verification code.
+ */
+const verifySocial = async (req, res, next) => {
   try {
-    const { username, code } = req.body;
-    
-    if (!username) return res.status(400).json({ success: false, message: 'Username is required' });
+    const { platform, url, code } = req.body;
 
-    const user = await User.findOne({ _id: req.user.id });
-    if (!user || !user.instagram || user.instagram.username !== username) {
-      return res.status(404).json({ verified: false, message: "Linked Instagram profile not found for this user" });
+    if (!platform || !url || !code) {
+      return res.status(400).json({ success: false, verified: false, message: "platform, url, code required" });
     }
 
-    // Security: Validate that the code sent matches the one we assigned
-    const assignedCode = user.instagram.code;
-    const codeToVerify = (code || assignedCode).trim().toUpperCase();
-
-    // Check DB status - no fake success
-    if (user.instagram.verified === true) {
-        return res.json({ verified: true, message: "Account is already verified" });
+    const username = extractUsername(url, platform);
+    if (!username) {
+      return res.status(400).json({ success: false, verified: false, message: "Invalid profile URL" });
     }
 
+    const user = await User.findById(req.user.id);
+    const record = user.socials ? user.socials[platform] : null;
+
+    if (!record || record.username !== username) {
+      return res.status(400).json({ success: false, verified: false, message: "Link first before verifying" });
+    }
+
+    // Security check: ensure the code provided matches what we assigned
+    if (record.code !== code) {
+       return res.status(400).json({ success: false, verified: false, message: "Verification code mismatch" });
+    }
+
+    // Idempotent success
+    if (record.verified === true) {
+      return res.json({ success: true, verified: true, message: "Already verified" });
+    }
+
+    let html;
     try {
-      console.log(`[VERIFY] Attempting scrape for @${username} looking for ${codeToVerify}`);
-      
-      // Fetch Instagram profile with browser-like headers
-      const response = await axios.get(`https://www.instagram.com/${username}/`, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.9',
-        },
-        timeout: 10000
-      });
-
-      const $ = cheerio.load(response.data);
-      
-      // Multi-layer content check (Bio, Title, Meta Tags)
-      const metaDescription = ($('meta[property="og:description"]').attr('content') || "").toUpperCase();
-      const bodyText = (response.data || "").toUpperCase();
-      const pageTitle = ($('title').text() || "").toUpperCase();
-      
-      const foundInMeta = metaDescription.includes(codeToVerify);
-      const foundInBody = bodyText.includes(codeToVerify);
-      const foundInTitle = pageTitle.includes(codeToVerify);
-
-      if (foundInMeta || foundInBody || foundInTitle) {
-        // ACTUAL VALIDATION SUCCESS
-        user.instagram.verified = true;
-        
-        // Update integrations map for dashboard visibility
-        if (!user.integrations) user.integrations = new Map();
-        user.integrations.set('instagram', true);
-        
-        await user.save();
-        return res.json({ 
-            success: true,
-            verified: true, 
-            message: "Verification successful! Ownership confirmed." 
-        });
-      }
-
-      // CODE NOT FOUND
-      return res.status(400).json({
-        success: true,
+      html = await fetchHtml(profileUrl(platform, username));
+    } catch (e) {
+      return res.status(502).json({
+        success: false,
         verified: false,
-        message: `Verification code ${codeToVerify} not found in @${username}'s bio or title.`
+        message: "Failed to fetch profile. Ensure profile is public and try again."
       });
+    }
 
-    } catch (err) {
-      console.error("[SCRAPE ERROR]", err.message);
+    if (!html) {
+      return res.status(502).json({
+        success: false,
+        verified: false,
+        message: "Empty response from social platform."
+      });
+    }
+
+    const $ = cheerio.load(html);
+    const cleanCode = code.trim().toUpperCase();
+
+    // Multi-layer search: Bio (Meta tags), Title, and Body
+    const metaDescription = ($('meta[property="og:description"]').attr('content') || "").toUpperCase();
+    const bodyText = (html || "").toUpperCase();
+    const pageTitle = ($('title').text() || "").toUpperCase();
+
+    const found = metaDescription.includes(cleanCode) || 
+                  bodyText.includes(cleanCode) || 
+                  pageTitle.includes(cleanCode);
+
+    if (!found) {
       return res.status(400).json({
         success: false,
         verified: false,
-        message: "Could not reach Instagram profile. Ensure the profile is PUBLIC and not restricted."
+        message: `Verification code ${cleanCode} not found in @${username}'s profile`
       });
     }
+
+    // ACTUAL SUCCESS
+    record.verified = true;
+    record.verifiedAt = new Date();
+
+    // Legacy sync
+    if (!user.integrations) user.integrations = new Map();
+    user.integrations.set(platform, true);
+
+    user.markModified(`socials.${platform}`);
+    await user.save();
+
+    return res.json({
+      success: true,
+      verified: true,
+      message: "Verification successful! Ownership confirmed."
+    });
   } catch (error) {
     next(error);
   }
 };
 
+/**
+ * GET /api/integrations
+ * Returns current connection status
+ */
 const getIntegrations = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     
-    const data = {
-        ...(user.integrations ? Object.fromEntries(user.integrations) : {}),
-        instagramVerified: user.instagram?.verified || false
-    };
+    // Combine Map and nested socials for comprehensive response
+    const legacyData = user.integrations ? Object.fromEntries(user.integrations) : {};
+    const socialsData = {};
+    
+    if (user.socials) {
+        Object.keys(user.socials).forEach(platform => {
+            socialsData[`${platform}Verified`] = user.socials[platform].verified;
+            if (user.socials[platform].verified) {
+                legacyData[platform] = true;
+            }
+        });
+    }
 
-    res.json({ success: true, data });
+    res.json({ success: true, data: { ...legacyData, ...socialsData } });
   } catch (error) {
     next(error);
   }
@@ -147,13 +173,22 @@ const getIntegrations = async (req, res, next) => {
 
 const connectPlatform = async (req, res, next) => {
     const { platform } = req.body;
-    if (platform === 'instagram') {
+    const restricted = ['instagram', 'twitter', 'linkedin', 'youtube'];
+    
+    if (restricted.includes(platform)) {
         return res.status(400).json({ 
             success: false, 
-            message: 'Instagram requires bio-verification flow. Use /link and /verify.' 
+            message: `${platform} requires manual bio-verification via /link and /verify.` 
         });
     }
+
+    // Generic connection for other platforms (Slack, etc)
+    const user = await User.findById(req.user.id);
+    if (!user.integrations) user.integrations = new Map();
+    user.integrations.set(platform, true);
+    await user.save();
+    
     res.json({ success: true, message: `${platform} connected` });
 };
 
-module.exports = { linkInstagram, verifyInstagram, getIntegrations, connectPlatform };
+module.exports = { linkSocial, verifySocial, getIntegrations, connectPlatform };
