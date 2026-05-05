@@ -1,4 +1,5 @@
 const authService = require('./services');
+const axios = require('axios');
 const { registerSchema, loginSchema } = require('./validations');
 const Analytics = require('../analytics/models');
 const Otp = require('./Otp');
@@ -184,4 +185,77 @@ const adminLogin = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, getProfile, sendOTP, resendOTP, verifyOTP, adminLogin };
+const facebookCallback = async (req, res, next) => {
+  const code = req.query.code;
+
+  if (!code) {
+    return res.status(400).send("No code received from Facebook");
+  }
+
+  try {
+    // 1. Exchange the authorization code for an access token
+    const tokenResponse = await axios.get(
+      "https://graph.facebook.com/v19.0/oauth/access_token",
+      {
+        params: {
+          client_id: process.env.APP_ID,
+          client_secret: process.env.APP_SECRET,
+          redirect_uri: process.env.REDIRECT_URI,
+          code: code,
+        },
+      }
+    );
+
+    const accessToken = tokenResponse.data.access_token;
+
+    // 2. Fetch user profile
+    const userResponse = await axios.get("https://graph.facebook.com/me", {
+      params: {
+        fields: "id,name,email",
+        access_token: accessToken,
+      },
+    });
+
+    const { name, email } = userResponse.data;
+
+    if (!email) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Facebook account must have a verified email." 
+      });
+    }
+
+    // 3. Find or Create User
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      user = await User.create({
+        name,
+        email,
+        role: 'creator',
+        isVerified: true, 
+        password_hash: Math.random().toString(36).substring(7)
+      });
+
+      // Initialize Analytics for new user
+      await Analytics.create({ userId: user._id });
+    }
+
+    // 4. Generate JWT
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '1d' }
+    );
+
+    // 5. Redirect to Frontend
+    const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+    res.redirect(`${FRONTEND_URL}/dashboard-redirect?token=${token}`);
+
+  } catch (error) {
+    console.error("Facebook OAuth Error:", error.response?.data || error.message);
+    next(error);
+  }
+};
+
+module.exports = { register, login, getProfile, sendOTP, resendOTP, verifyOTP, adminLogin, facebookCallback };
