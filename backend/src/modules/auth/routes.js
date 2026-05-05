@@ -1,5 +1,6 @@
 
 const express = require('express');
+const axios = require('axios');
 const authController = require('./controllers');
 const { authenticate } = require('../../middleware/auth');
 const router = express.Router();
@@ -42,6 +43,37 @@ router.get("/linkedin/callback",
     res.redirect(`${FRONTEND_URL}/dashboard-redirect?token=${token}`);
   }
 );
+
+// Facebook OAuth Callback
+router.get("/facebook/callback", async (req, res) => {
+  const code = req.query.code;
+
+  if (!code) {
+    return res.send("No code received");
+  }
+
+  try {
+    const tokenResponse = await axios.get(
+      "https://graph.facebook.com/v19.0/oauth/access_token",
+      {
+        params: {
+          client_id: process.env.APP_ID,
+          client_secret: process.env.APP_SECRET,
+          redirect_uri: process.env.REDIRECT_URI,
+          code: code,
+        },
+      }
+    );
+
+    const accessToken = tokenResponse.data.access_token;
+
+    res.send("Access Token: " + accessToken);
+
+  } catch (error) {
+    console.error(error.response?.data || error.message);
+    res.send("Error getting token");
+  }
+});
 
 router.get('/profile', authenticate, authController.getProfile);
 
