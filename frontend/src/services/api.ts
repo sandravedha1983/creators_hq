@@ -3,7 +3,7 @@ import axios from "axios";
 axios.defaults.timeout = 8000;
 
 const API = axios.create({
-    baseURL: import.meta.env.VITE_API_URL,
+    baseURL: import.meta.env.VITE_API_URL || 'https://creators-hq-lz3d.onrender.com',
     timeout: 8000
 });
 
