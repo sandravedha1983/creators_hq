@@ -28,14 +28,12 @@ const allowedOrigins = [
 
 app.use(cors({
     origin: function (origin, callback) {
-        // Allow requests with no origin (mobile apps, curl, etc.)
-        if (!origin) return callback(null, true);
-        if (allowedOrigins.includes(origin)) {
-            return callback(null, true);
-        }
-        return callback(null, true); // Permissive for now — tighten in production
+        // Dynamically reflect the request origin to allow any client domain (Vercel, localhost, etc.)
+        // while still supporting credentials: true
+        callback(null, origin || '*');
     },
-    credentials: true
+    credentials: true,
+    optionsSuccessStatus: 200
 }));
 
 app.use(express.json());
