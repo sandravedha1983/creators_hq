@@ -3,13 +3,19 @@ const errorHandler = (err, req, res, next) => {
   const status = err.statusCode || 500;
   const message = err.message || 'Internal Server Error';
   
-  res.status(status).json({
+  const response = {
     success: false,
     message: message,
     error: err.toString(),
-    stack: err.stack, // Temporarily always include stack for quick diagnosis
     details: err.errors // For Zod validation errors
-  });
+  };
+
+  // Only include stack trace in development — security risk in production
+  if (process.env.NODE_ENV !== 'production') {
+    response.stack = err.stack;
+  }
+
+  res.status(status).json(response);
 };
 
 

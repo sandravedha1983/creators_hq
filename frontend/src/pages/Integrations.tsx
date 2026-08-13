@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/Button";
 import {
     Instagram, Youtube, Linkedin, Twitter, Slack,
     Globe, Shield, Zap,
-    RefreshCw, Copy, CheckCircle, XCircle
+    RefreshCw, Copy, CheckCircle, XCircle, Clock
 } from "lucide-react";
 import { useAppContext } from "@/context/AppContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -12,6 +12,8 @@ import { cn } from "@/utils/cn";
 import { toast } from 'react-hot-toast';
 import { Spinner } from "@/components/ui/Spinner";
 import API from '@/services/api';
+
+type IntegrationStatus = 'connected' | 'pending' | 'offline';
 
 export default function Integrations() {
     const { integrations, toggleIntegration } = useAppContext();
@@ -28,6 +30,32 @@ export default function Integrations() {
     const [code, setCode] = useState("");
     const [username, setUsername] = useState("");
     const [profileUrl, setProfileUrl] = useState("");
+    const [verifyError, setVerifyError] = useState<string | null>(null);
+
+    // Pending status tracking (linked but not verified)
+    const [pendingPlatforms, setPendingPlatforms] = useState<Set<string>>(new Set());
+
+    const getStatus = (integration: any): IntegrationStatus => {
+        if (integration.connected) return 'connected';
+        if (pendingPlatforms.has(integration.name.toLowerCase())) return 'pending';
+        return 'offline';
+    };
+
+    const getStatusLabel = (status: IntegrationStatus) => {
+        switch (status) {
+            case 'connected': return 'Connected';
+            case 'pending': return 'Pending';
+            case 'offline': return 'Offline';
+        }
+    };
+
+    const getStatusClasses = (status: IntegrationStatus) => {
+        switch (status) {
+            case 'connected': return 'border-primary/20 bg-primary/10 text-primary';
+            case 'pending': return 'border-amber-500/20 bg-amber-500/10 text-amber-400';
+            case 'offline': return 'border-white/5 text-heaven-muted/40';
+        }
+    };
 
     const handleToggle = async (id: string, name: string, isConnected: boolean) => {
         const platform = name.toLowerCase();
@@ -36,6 +64,7 @@ export default function Integrations() {
         if (manualPlatforms.includes(platform) && !isConnected) {
             setActivePlatform(platform);
             setShowModal(true);
+            setVerifyError(null);
             return;
         }
 
@@ -54,6 +83,7 @@ export default function Integrations() {
     const handleLinkSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
+        setVerifyError(null);
         const toastId = toast.loading(`Linking ${activePlatform}...`);
         
         try {
@@ -67,10 +97,14 @@ export default function Integrations() {
                 setVerified(false); // Link only, never verify
                 setCode(res.data.code);
                 setVerificationStep(true);
+                // Mark platform as pending
+                setPendingPlatforms(prev => new Set(prev).add(activePlatform));
                 toast.success("Account Linked. Verification required.", { id: toastId });
             }
         } catch (error: any) {
-            toast.error(error.response?.data?.message || "Failed to link account", { id: toastId });
+            const msg = error.response?.data?.message || "Failed to link account";
+            toast.error(msg, { id: toastId });
+            setVerifyError(msg);
         } finally {
             setLoading(false);
         }
@@ -78,6 +112,7 @@ export default function Integrations() {
 
     const handleVerify = async () => {
         setLoading(true);
+        setVerifyError(null);
         const toastId = toast.loading("Verifying Ownership...");
         
         try {
@@ -90,6 +125,12 @@ export default function Integrations() {
 
             if (res.data.verified) {
                 setVerified(true);
+                // Remove from pending
+                setPendingPlatforms(prev => {
+                    const next = new Set(prev);
+                    next.delete(activePlatform);
+                    return next;
+                });
                 toast.success("Ownership Verified! ✅", { id: toastId });
                 setTimeout(() => {
                     setShowModal(false);
@@ -98,11 +139,14 @@ export default function Integrations() {
                 }, 1500);
             } else {
                 setVerified(false);
-                toast.error("Code not found ❌", { id: toastId });
+                const reason = res.data.message || "Code not found in profile";
+                setVerifyError(reason);
+                toast.error(reason, { id: toastId });
             }
         } catch (err: any) {
             setVerified(false);
             const msg = err?.response?.data?.message || "Verification failed";
+            setVerifyError(msg);
             toast.error(msg, { id: toastId });
         } finally {
             setLoading(false);
@@ -132,6 +176,7 @@ export default function Integrations() {
             setProfileUrl("");
             setCode("");
             setVerified(false);
+            setVerifyError(null);
         }
     };
 
@@ -148,7 +193,9 @@ export default function Integrations() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-                {integrations.map((integration, idx) => (
+                {integrations.map((integration, idx) => {
+                    const status = getStatus(integration);
+                    return (
                     <motion.div
                         key={integration.id}
                         initial={{ opacity: 0, y: 15 }}
@@ -157,20 +204,23 @@ export default function Integrations() {
                     >
                         <Card className={cn(
                             "p-10 border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl rounded-[3rem] transition-all duration-700 group",
-                            integration.connected ? "shadow-glass border-primary/20" : "opacity-50"
+                            status === 'connected' ? "shadow-glass border-primary/20" : 
+                            status === 'pending' ? "shadow-glass border-amber-500/15" : "opacity-50"
                         )}>
                             <div className="flex items-start justify-between mb-12">
                                 <div className={cn(
                                     "w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-700",
-                                    integration.connected ? 'bg-primary/20 text-primary shadow-soft-glow' : 'bg-white/5 text-heaven-muted'
+                                    status === 'connected' ? 'bg-primary/20 text-primary shadow-soft-glow' : 
+                                    status === 'pending' ? 'bg-amber-500/20 text-amber-400' : 'bg-white/5 text-heaven-muted'
                                 )}>
                                     {getIcon(integration.name)}
                                 </div>
                                 <div className={cn(
-                                    "px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest border",
-                                    integration.connected ? 'border-primary/20 bg-primary/10 text-primary' : 'border-white/5 text-heaven-muted/40'
+                                    "px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest border flex items-center gap-2",
+                                    getStatusClasses(status)
                                 )}>
-                                    {integration.connected ? 'Connected' : 'Offline'}
+                                    {status === 'pending' && <Clock className="w-3 h-3" />}
+                                    {getStatusLabel(status)}
                                 </div>
                             </div>
 
@@ -189,7 +239,8 @@ export default function Integrations() {
                             </Button>
                         </Card>
                     </motion.div>
-                ))}
+                    );
+                })}
             </div>
 
             {/* Unified Social Verification Modal */}
@@ -235,6 +286,11 @@ export default function Integrations() {
                                                 required
                                             />
                                         </div>
+                                        {verifyError && (
+                                            <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl">
+                                                <p className="text-rose-400 text-[11px] font-bold">{verifyError}</p>
+                                            </div>
+                                        )}
                                         <Button type="submit" variant="primary" disabled={loading} className="w-full h-18 rounded-2xl font-bold text-[10px] uppercase tracking-widest shadow-soft-glow">
                                             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : "Establish Link"}
                                         </Button>
@@ -260,6 +316,12 @@ export default function Integrations() {
                                             </button>
                                         </div>
                                     </div>
+
+                                    {verifyError && (
+                                        <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl">
+                                            <p className="text-rose-400 text-[11px] font-bold text-center">{verifyError}</p>
+                                        </div>
+                                    )}
 
                                     <div className="space-y-4">
                                         <Button 

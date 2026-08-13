@@ -14,3 +14,13 @@ export const blockUser = async (id: string) => {
     const res = await API.patch(`/api/admin/user/${id}/block`);
     return res.data;
 };
+
+export const getCampaigns = async () => {
+    const res = await API.get("/api/admin/campaigns");
+    return res.data;
+};
+
+export const getLeads = async () => {
+    const res = await API.get("/api/admin/leads");
+    return res.data;
+};

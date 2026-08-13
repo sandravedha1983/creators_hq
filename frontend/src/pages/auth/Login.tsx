@@ -93,7 +93,7 @@ export default function Login() {
                     <div className="space-y-4 text-left">
                         <div className="flex items-center justify-between ml-2">
                             <label className="text-[11px] font-bold text-primary-light/90">Password</label>
-                            <a href="#" className="text-[9px] sm:text-[10px] text-primary font-bold uppercase tracking-widest hover:text-heaven-text transition-all opacity-80 hover:opacity-100">Forgot Code?</a>
+                            <Link to="/forgot-password" className="text-[9px] sm:text-[10px] text-primary font-bold uppercase tracking-widest hover:text-heaven-text transition-all opacity-80 hover:opacity-100">Forgot Code?</Link>
                         </div>
                         <div className="relative group/input">
                             <Lock className="absolute left-6 sm:left-7 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-heaven-muted/20 group-focus-within/input:text-primary transition-colors" />
@@ -147,22 +147,13 @@ export default function Login() {
                         LinkedIn
                     </button>
                 </div>
-                <div className="mt-12 sm:mt-16 text-center space-y-4">
+                <div className="mt-12 sm:mt-16 text-center">
                     <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.3em] text-heaven-muted opacity-80 italic">
                         New Member?{' '}
                         <Link to="/signup" className="text-primary hover:text-heaven-text transition-all ml-2 underline underline-offset-8 decoration-primary/30">
                             Create Account
                         </Link>
                     </p>
-                    <div className="pt-2">
-                        <Link 
-                            to="/admin-login" 
-                            className="text-heaven-muted/30 hover:text-primary text-[8px] sm:text-[9px] font-bold uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-2 group"
-                        >
-                            <Shield className="w-3 h-3 group-hover:scale-110 transition-transform" />
-                            Admin Access
-                        </Link>
-                    </div>
                 </div>
             </Card>
         </div>

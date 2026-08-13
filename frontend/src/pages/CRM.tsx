@@ -93,8 +93,8 @@ export default function CRM() {
                                     </td>
                                 </tr>
                             ) : (
-                                leads.map((lead) => (
-                                    <tr key={lead.id} className="group hover:bg-white/[0.02] transition-all duration-500">
+                                 leads.map((lead) => (
+                                    <tr key={lead._id} className="group hover:bg-white/[0.02] transition-all duration-500">
                                         <td className="px-10 py-8">
                                             <div className="flex items-center gap-5">
                                                 <div className="w-12 h-12 rounded-2xl bg-button-gradient p-[1px]">
@@ -128,7 +128,9 @@ export default function CRM() {
                                             <span className="text-sm font-bold text-heaven-text tracking-widest">{lead.value}</span>
                                         </td>
                                         <td className="px-10 py-8">
-                                            <span className="text-[10px] font-bold text-heaven-muted tracking-widest uppercase">{lead.date}</span>
+                                            <span className="text-[10px] font-bold text-heaven-muted tracking-widest uppercase">
+                                                {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : '—'}
+                                            </span>
                                         </td>
                                         <td className="px-10 py-8 text-right">
                                             <button className="p-3 text-heaven-muted hover:text-heaven-text transition-colors duration-500">

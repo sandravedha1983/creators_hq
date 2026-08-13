@@ -1,10 +1,11 @@
 const express = require('express');
 const { getBrandDashboard, getCreatorDashboard } = require('./controllers');
 const { authenticate, authorize } = require('../../middleware/auth');
-const { verificationGuard } = require('../../middleware/verificationGuard');
 const router = express.Router();
 
-router.get('/brand', authenticate, authorize('brand', 'admin'), verificationGuard, getBrandDashboard);
-router.get('/creator', authenticate, authorize('creator', 'admin'), verificationGuard, getCreatorDashboard);
+// verificationGuard REMOVED — OTP verification is sufficient for dashboard access.
+// Social profile verification (verificationStatus) is a separate concern for integrations.
+router.get('/brand', authenticate, authorize('brand', 'admin'), getBrandDashboard);
+router.get('/creator', authenticate, authorize('creator', 'admin'), getCreatorDashboard);
 
 module.exports = router;

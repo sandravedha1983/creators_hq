@@ -14,8 +14,9 @@ import { toast } from 'react-hot-toast';
 export default function BrandDashboard() {
     const [activeTab, setActiveTab] = useState<'campaigns' | 'creators'>('campaigns');
     const navigate = useNavigate();
-    const { campaigns, users } = useAppContext();
+    const { campaigns } = useAppContext();
     const [statsData, setStatsData] = useState<any>(null);
+    const [creatorCount, setCreatorCount] = useState(0);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -25,15 +26,25 @@ export default function BrandDashboard() {
                 setStatsData(res.data);
             } catch (err) {
                 console.error("Failed to load brand stats", err);
-            } finally {
-                setLoading(false);
             }
         };
-        fetchStats();
+
+        const fetchCreators = async () => {
+            try {
+                const { getPublicCreators } = await import('@/services/profileService');
+                const res = await getPublicCreators();
+                setCreatorCount(res.total || 0);
+            } catch (err) {
+                console.error("Failed to fetch public creators count", err);
+            }
+        };
+
+        Promise.all([fetchStats(), fetchCreators()]).finally(() => {
+            setLoading(false);
+        });
     }, []);
 
-    const myCampaigns = campaigns.filter(c => c.brandId === 'system' || c.brandId === 'admin@creatorshq.ai');
-    const creatorCount = users.filter(u => u.role === 'creator').length;
+    const myCampaigns = campaigns;
     // Fallback to local calculation if API fails or is empty, but prioritize API
     const totalBudget = statsData?.totalBudget || myCampaigns.reduce((acc, c) => acc + parseInt(c.budget.replace(/[^0-9]/g, '') || '0'), 0);
 

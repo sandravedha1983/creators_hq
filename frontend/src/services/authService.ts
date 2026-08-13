@@ -12,9 +12,7 @@ export const registerUser = async (data: any) => {
 export const loginUser = async (data: any) => {
     try {
         const res = await API.post("/api/auth/login", data);
-        if (res.data.token) {
-            localStorage.setItem("token", res.data.token);
-        }
+        // Token is NOT returned from login — it comes after OTP verification
         return res.data;
     } catch (err: any) {
         throw err.response?.data || err;

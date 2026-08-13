@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
 
 const collaborationSchema = new mongoose.Schema({
-  sender_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  receiver_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  sender_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  receiver_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   message: { type: String },
   status: { 
     type: String, 

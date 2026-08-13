@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
 
 const transactionSchema = new mongoose.Schema({
-  sender_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  recipient_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  sender_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  recipient_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   amount: { type: Number, required: true },
   currency: { type: String, default: 'USD' },
   status: { type: String, enum: ["pending", "paid", "failed"], default: "paid" }

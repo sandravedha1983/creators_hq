@@ -4,8 +4,9 @@ const { registerSchema, loginSchema } = require('./validations');
 const Analytics = require('../analytics/models');
 const Otp = require('./Otp');
 const jwt = require('jsonwebtoken');
-const { sendOTP: sendOTPEmail } = require('../../utils/mailer');
+const { sendOTP: sendOTPEmail, sendWelcomeEmail, sendPasswordResetEmail, generateResetToken } = require('../../utils/mailer');
 const User = require('./models');
+const bcrypt = require('bcrypt');
 
 const register = async (req, res, next) => {
   try {
@@ -84,7 +85,29 @@ const login = async (req, res, next) => {
 
 const getProfile = async (req, res, next) => {
   try {
-    const user = await authService.getProfile(req.user.id);
+    const user = await User.findById(req.user.id).select('-password_hash -resetToken -resetTokenExpiry');
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    res.json({ success: true, data: user });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateProfile = async (req, res, next) => {
+  try {
+    const allowed = ['name', 'avatar', 'isOnboarded'];
+    const updates = {};
+    allowed.forEach(field => {
+      if (req.body[field] !== undefined) updates[field] = req.body[field];
+    });
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: updates },
+      { new: true, runValidators: true }
+    ).select('-password_hash -resetToken -resetTokenExpiry');
+
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     res.json({ success: true, data: user });
   } catch (error) {
     next(error);
@@ -138,7 +161,8 @@ const verifyOTP = async (req, res, next) => {
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-    // Mark as verified if not already
+    // Mark as verified if not already + send welcome email on first verification
+    const isFirstVerification = !user.isVerified;
     if (!user.isVerified) {
         user.isVerified = true;
         await user.save();
@@ -152,6 +176,13 @@ const verifyOTP = async (req, res, next) => {
       { expiresIn: '1d' }
     );
 
+    // Send welcome email on first-ever verification (non-blocking)
+    if (isFirstVerification) {
+      sendWelcomeEmail(user.email, user.name).catch(err => {
+        console.error(`[MAIL] Welcome email failed for ${user.email}:`, err.message);
+      });
+    }
+
     res.json({ 
       success: true, 
       token, 
@@ -159,7 +190,10 @@ const verifyOTP = async (req, res, next) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        role: user.role
+        role: user.role,
+        plan: user.plan || 'free',
+        isOnboarded: user.isOnboarded || false,
+        avatar: user.avatar || ''
       },
       message: 'Authentication Successful' 
     });
@@ -180,6 +214,70 @@ const adminLogin = async (req, res, next) => {
       return res.json({ success: true, token, user: { email, role: 'admin' } });
     }
     res.status(401).json({ success: false, message: 'Invalid Admin Credentials' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      // Don't reveal whether the email exists — return success either way
+      return res.json({ success: true, message: 'If an account exists with that email, a reset link has been sent.' });
+    }
+
+    const resetToken = generateResetToken();
+    const resetTokenExpiry = new Date(Date.now() + 30 * 60000); // 30 minutes
+
+    user.resetToken = resetToken;
+    user.resetTokenExpiry = resetTokenExpiry;
+    await user.save();
+
+    await sendPasswordResetEmail(email, resetToken);
+    console.log(`[AUTH] Password reset email sent to ${email}`);
+
+    res.json({ success: true, message: 'If an account exists with that email, a reset link has been sent.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const resetPassword = async (req, res, next) => {
+  try {
+    const { email, token, newPassword } = req.body;
+    if (!email || !token || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Email, token, and new password are required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
+    }
+
+    const user = await User.findOne({ email, resetToken: token });
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired reset token' });
+    }
+
+    if (new Date() > user.resetTokenExpiry) {
+      user.resetToken = undefined;
+      user.resetTokenExpiry = undefined;
+      await user.save();
+      return res.status(400).json({ success: false, message: 'Reset token has expired. Please request a new one.' });
+    }
+
+    // Update password
+    user.password_hash = await bcrypt.hash(newPassword, 10);
+    user.resetToken = undefined;
+    user.resetTokenExpiry = undefined;
+    await user.save();
+
+    console.log(`[AUTH] Password reset successful for ${email}`);
+
+    res.json({ success: true, message: 'Password has been reset successfully. You can now login with your new password.' });
   } catch (error) {
     next(error);
   }
@@ -249,8 +347,14 @@ const facebookCallback = async (req, res, next) => {
     );
 
     // 5. Redirect to Frontend
-    const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
-    res.redirect(`${FRONTEND_URL}/dashboard-redirect?token=${token}`);
+    const getFrontendUrl = (req) => {
+        if (req.hostname === 'localhost' || req.hostname === '127.0.0.1') {
+            return 'http://localhost:5173';
+        }
+        return process.env.FRONTEND_URL || 'http://localhost:5173';
+    };
+    const redirectUrl = getFrontendUrl(req);
+    res.redirect(`${redirectUrl}/dashboard-redirect?token=${token}`);
 
   } catch (error) {
     console.error("Facebook OAuth Error:", error.response?.data || error.message);
@@ -258,4 +362,5 @@ const facebookCallback = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, getProfile, sendOTP, resendOTP, verifyOTP, adminLogin, facebookCallback };
+module.exports = { register, login, getProfile, updateProfile, sendOTP, resendOTP, verifyOTP, adminLogin, forgotPassword, resetPassword, facebookCallback };
+

@@ -22,7 +22,7 @@ export default function AdminLogin() {
         try {
             await adminLogin(email, password);
             toast.success('Admin Access Granted.', { id: toastId });
-            navigate('/admin-dashboard');
+            navigate('/admin/dashboard');
         } catch (err: any) {
             toast.error('Unauthorized Access Denied.', { id: toastId });
         } finally {

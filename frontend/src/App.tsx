@@ -27,6 +27,8 @@ const Messages = lazy(() => import('./pages/Messages'));
 const Notifications = lazy(() => import('./pages/Notifications'));
 const Integrations = lazy(() => import('./pages/Integrations'));
 const Team = lazy(() => import('./pages/Team'));
+const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
 
 const BrandDashboard = lazy(() => import('./pages/BrandDashboard'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
@@ -63,9 +65,18 @@ function App() {
                         <Route path="/" element={<LandingPage />} />
                         <Route path="/login" element={<Login />} />
                         <Route path="/signup" element={<Signup />} />
-                        <Route path="/admin-login" element={<AdminLogin />} />
+                        <Route path="/forgot-password" element={<ForgotPassword />} />
+                        <Route path="/reset-password" element={<ResetPassword />} />
                         <Route path="/dashboard-redirect" element={<DashboardRedirect />} />
                         <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout><Dashboard /></DashboardLayout></ProtectedRoute>} />
+
+                        {/* Admin Routes — Separated under /admin/ */}
+                        <Route path="/admin/login" element={<AdminLogin />} />
+                        <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><AdminDashboard /></DashboardLayout></ProtectedRoute>} />
+
+                        {/* Legacy admin redirects */}
+                        <Route path="/admin-login" element={<Navigate to="/admin/login" replace />} />
+                        <Route path="/admin-dashboard" element={<Navigate to="/admin/dashboard" replace />} />
 
                         {/* Auth Verification */}
                         <Route path="/verify-otp" element={<ProtectedRoute><VerifyOtp /></ProtectedRoute>} />
@@ -84,7 +95,6 @@ function App() {
                         <Route path="/creators" element={<ProtectedRoute allowedRoles={['brand']}><DashboardLayout><Creators /></DashboardLayout></ProtectedRoute>} />
 
                         {/* Admin Specific Routes */}
-                        <Route path="/admin-dashboard" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><AdminDashboard /></DashboardLayout></ProtectedRoute>} />
                         <Route path="/users" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><Users /></DashboardLayout></ProtectedRoute>} />
                         <Route path="/reports" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><Reports /></DashboardLayout></ProtectedRoute>} />
 
