@@ -28,8 +28,10 @@ const register = async (req, res, next) => {
       { upsert: true, new: true }
     );
 
-    await sendOTPEmail(user.email, otp);
-    console.log(`[AUTH] Registration OTP sent to ${user.email}`);
+    sendOTPEmail(user.email, otp).catch(err => {
+        console.error(`[MAIL ERROR] Registration OTP email failed for ${user.email}:`, err.message);
+    });
+    console.log(`[AUTH] Registration OTP generated for ${user.email} (OTP: ${otp})`);
 
     res.status(201).json({ 
         success: true, 
