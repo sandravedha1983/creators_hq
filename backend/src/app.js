@@ -19,8 +19,22 @@ console.log("OAuth Config - LinkedIn Callback:", process.env.LINKEDIN_CALLBACK_U
 
 app.use(passport.initialize());
 
+// CORS: Use specific origin instead of wildcard when credentials are enabled
+const allowedOrigins = [
+    process.env.FRONTEND_URL || 'http://localhost:5173',
+    'http://localhost:5173',
+    'http://localhost:3000'
+].filter(Boolean);
+
 app.use(cors({
-    origin: "*",
+    origin: function (origin, callback) {
+        // Allow requests with no origin (mobile apps, curl, etc.)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+        return callback(null, true); // Permissive for now — tighten in production
+    },
     credentials: true
 }));
 
@@ -31,6 +45,21 @@ app.use((req, res, next) => {
     next();
 });
 
+// ============================================================
+// Health Check
+// ============================================================
+app.get('/health', (req, res) => {
+    res.json({ 
+        success: true, 
+        status: 'healthy', 
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime()
+    });
+});
+
+// ============================================================
+// Module Routes
+// ============================================================
 app.use('/api/auth', require('./modules/auth/routes'));
 app.use('/api/verify', require('./modules/verification/routes'));
 app.use('/api/dashboard', require('./modules/dashboard/routes'));
@@ -53,6 +82,69 @@ app.use('/api/billing', require('./modules/billing/routes'));
 app.use('/uploads', express.static('uploads'));
 // app.use('/automation', require('./modules/automation/routes')); // Disable if Redis is not running
 
+// ============================================================
+// Convenience API Aliases (Phase 7 — API Audit)
+// ============================================================
+const { authenticate } = require('./middleware/auth');
+
+// GET /api/profile → proxy to /api/auth/profile
+app.get('/api/profile', authenticate, async (req, res, next) => {
+    try {
+        const authService = require('./modules/auth/services');
+        const user = await authService.getProfile(req.user.id);
+        res.json({ success: true, data: user });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// POST /api/login → proxy to /api/auth/login
+app.post('/api/login', (req, res, next) => {
+    req.url = '/login';
+    require('./modules/auth/routes').handle(req, res, next);
+});
+
+// POST /api/signup → proxy to /api/auth/register
+app.post('/api/signup', (req, res, next) => {
+    req.url = '/register';
+    require('./modules/auth/routes').handle(req, res, next);
+});
+
+// POST /api/logout
+app.post('/api/logout', (req, res) => {
+    // JWT is stateless — client removes the token. Server acknowledges.
+    res.json({ success: true, message: 'Logged out successfully' });
+});
+
+// POST /api/forgot-password → proxy to auth module
+app.post('/api/forgot-password', (req, res, next) => {
+    const authController = require('./modules/auth/controllers');
+    authController.forgotPassword(req, res, next);
+});
+
+// POST /api/reset-password → proxy to auth module
+app.post('/api/reset-password', (req, res, next) => {
+    const authController = require('./modules/auth/controllers');
+    authController.resetPassword(req, res, next);
+});
+
+// GET /api/dashboard → auto-route by role
+app.get('/api/dashboard', authenticate, async (req, res, next) => {
+    try {
+        const dashboardModel = require('./modules/dashboard/models');
+        const role = req.user.role;
+        let stats;
+        if (role === 'brand' || role === 'admin') {
+            stats = await dashboardModel.getBrandStats(req.user.id);
+        } else {
+            stats = await dashboardModel.getCreatorStats(req.user.id);
+        }
+        res.json({ success: true, data: stats });
+    } catch (error) {
+        next(error);
+    }
+});
+
 
 app.get("/", (req, res) => {
     res.send("CreatorsHQ Backend is running 🚀");
@@ -64,6 +156,11 @@ app.get("/test", (req, res) => {
 
 // No frontend static serving - Frontend is deployed separately on a Static Site
 
+
+// 404 Handler
+app.use((req, res, next) => {
+    res.status(404).json({ success: false, message: 'Route not found' });
+});
 
 app.use((err, req, res, next) => {
   console.error("ERROR:", err.message);

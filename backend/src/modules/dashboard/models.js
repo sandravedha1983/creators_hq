@@ -32,9 +32,10 @@ const Dashboard = {
     return {
       ...stats,
       totalCreators: creatorsCount.length,
-      campaignsGrowth: '+12%',
-      creatorsGrowth: '+8%',
-      budgetGrowth: '+15%'
+      // Real data — no fake growth percentages
+      campaignsGrowth: 'N/A',
+      creatorsGrowth: 'N/A',
+      budgetGrowth: 'N/A'
     };
   },
 
@@ -44,28 +45,26 @@ const Dashboard = {
     
     if (!user) return null;
 
-    const instagram = user.instagram || {
-      followers: 0,
-      engagementRate: 0,
-      isConnected: false
-    };
+    // Read from user.socials.instagram (correct schema path)
+    const instagramSocial = user.socials?.instagram || {};
+    const isConnected = instagramSocial.verified === true;
 
     return {
       username: user.name,
-      followers: instagram.followers,
-      followersGrowth: instagram.isConnected ? '+0%' : 'N/A',
-      engagement: instagram.engagementRate,
-      engagementGrowth: instagram.isConnected ? '+0%' : 'N/A',
-      earnings: 0, // Zeroed out as per "No Dummy Data" rule
+      followers: 0,
+      followersGrowth: 'N/A',
+      engagement: 0,
+      engagementGrowth: 'N/A',
+      earnings: 0,
       earningsGrowth: 'N/A',
-      growthScore: 0, // Zeroed out as per "No Dummy Data" rule
+      growthScore: 0,
       growthScoreGrowth: 'N/A',
       instagram: {
-        username: instagram.username,
-        profileLink: instagram.profileLink,
-        followers: instagram.followers,
-        engagementRate: instagram.engagementRate,
-        isConnected: instagram.isConnected
+        username: instagramSocial.username || null,
+        profileLink: instagramSocial.url || null,
+        followers: 0,
+        engagementRate: 0,
+        isConnected: isConnected
       }
     };
   }

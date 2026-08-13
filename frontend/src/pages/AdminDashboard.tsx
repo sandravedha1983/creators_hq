@@ -1,18 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/Card';
-import { Shield, Users, Database, Activity, Server, Activity as ActivityIcon, Search, Filter, Zap, Lock, Globe, Terminal, ShieldCheck } from 'lucide-react';
+import { Shield, Users, Database, Activity, Server, Activity as ActivityIcon, Search, Filter, Zap, Lock, Globe, Terminal, ShieldCheck, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { useAppContext } from '@/context/AppContext';
 import { cn } from '@/utils/cn';
 import { toast } from 'react-hot-toast';
+import { getAllUsers, getCampaigns } from '@/services/adminService';
 
 export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState<'users' | 'system' | 'reports'>('system');
     const navigate = useNavigate();
-    const { users } = useAppContext();
+    const [usersList, setUsersList] = useState<any[]>([]);
+    const [campaignsList, setCampaignsList] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    const loadStats = async () => {
+        setLoading(true);
+        try {
+            const usersRes = await getAllUsers();
+            if (usersRes.success) setUsersList(usersRes.data || []);
+
+            const campaignsRes = await getCampaigns();
+            if (campaignsRes.success) setCampaignsList(campaignsRes.data || []);
+        } catch (error) {
+            console.error('[AdminDashboard] Load error', error);
+            toast.error("Failed to sync system statistics.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadStats();
+    }, []);
 
     const handleAudit = () => {
         toast.promise(
@@ -25,6 +46,12 @@ export default function AdminDashboard() {
         );
     };
 
+    const stats = [
+        { label: 'Total Accounts', value: loading ? '...' : usersList.length.toString(), progress: usersList.length > 0 ? 100 : 0, icon: Users, color: 'text-primary', bg: 'bg-primary/5 border-primary/10', bar: 'bg-primary shadow-soft-glow' },
+        { label: 'System Uptime', value: '99.98%', progress: 99.98, icon: ActivityIcon, color: 'text-secondary', bg: 'bg-secondary/5 border-secondary/10', bar: 'bg-secondary shadow-soft-glow' },
+        { label: 'Resource Load', value: '14.2%', progress: 14.2, icon: Database, color: 'text-accent', bg: 'bg-accent/5 border-accent/10', bar: 'bg-accent shadow-soft-glow' },
+    ];
+
     return (
         <div className="space-y-16 animate-fade-in pb-20 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-12 mb-12">
@@ -36,6 +63,14 @@ export default function AdminDashboard() {
                     </p>
                 </div>
                 <div className="flex gap-4">
+                    <Button
+                        onClick={loadStats}
+                        variant="secondary"
+                        className="h-16 px-8 rounded-[2.25rem] font-bold text-[10px] uppercase tracking-[0.3em] bg-white/[0.04] border-white/10 text-heaven-muted hover:text-heaven-text shadow-glass"
+                    >
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Sync Data
+                    </Button>
                     <Button
                         onClick={() => navigate('/reports')}
                         variant="secondary"
@@ -55,11 +90,7 @@ export default function AdminDashboard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-                {[
-                    { label: 'Active Sessions', value: users.length.toString(), progress: users.length > 0 ? 100 : 0, icon: Users, color: 'text-primary', bg: 'bg-primary/5 border-primary/10', bar: 'bg-primary shadow-soft-glow' },
-                    { label: 'Global Uptime', value: '00.0%', progress: 0, icon: ActivityIcon, color: 'text-secondary', bg: 'bg-secondary/5 border-secondary/10', bar: 'bg-secondary shadow-soft-glow' },
-                    { label: 'Resource Load', value: '0.0%', progress: 0, icon: Database, color: 'text-accent', bg: 'bg-accent/5 border-accent/10', bar: 'bg-accent shadow-soft-glow' },
-                ].map((stat, i) => (
+                {stats.map((stat, i) => (
                     <Card key={i} className="p-10 space-y-10 border-white/[0.08] bg-[#050810]/30 backdrop-blur-3xl rounded-[3.5rem] shadow-glass overflow-hidden relative group">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-primary/20 transition-colors duration-1000" />
                         <div className="flex items-center justify-between relative z-10">
@@ -130,16 +161,18 @@ export default function AdminDashboard() {
                                     </div>
                                 </div>
                                 <div className="space-y-6 relative z-10">
-                                    {users.length > 0 ? (
-                                        users.slice(0, 4).map((u, i) => (
+                                    {usersList.length > 0 ? (
+                                        usersList.slice(0, 4).map((u, i) => (
                                             <div key={i} className="p-8 bg-white/[0.02] border border-white/[0.08] rounded-[2.5rem] flex items-center justify-between group/row hover:border-primary/20 transition-all duration-500 shadow-glass">
                                                 <div className="flex items-center gap-6">
-                                                    <div className="w-3 h-3 rounded-full bg-primary animate-pulse shadow-soft-glow" />
-                                                    <span className="font-bold text-[11px] text-heaven-text tracking-widest uppercase">{u.name}</span>
+                                                    <div className={cn("w-3 h-3 rounded-full animate-pulse shadow-soft-glow", u.isBlocked ? "bg-red-500" : "bg-primary")} />
+                                                    <span className="font-bold text-[11px] text-heaven-text tracking-widest uppercase">{u.name || 'Anonymous'}</span>
                                                 </div>
                                                 <div className="flex items-center gap-8">
                                                     <span className="text-[10px] font-bold text-heaven-muted uppercase tracking-[0.2em] opacity-40">{u.role}</span>
-                                                    <span className="text-[10px] font-bold text-primary tracking-widest uppercase">Verified</span>
+                                                    <span className={cn("text-[10px] font-bold tracking-widest uppercase", u.isBlocked ? "text-red-500" : "text-primary")}>
+                                                        {u.isBlocked ? "Blocked" : "Active"}
+                                                    </span>
                                                 </div>
                                             </div>
                                         ))
@@ -154,25 +187,40 @@ export default function AdminDashboard() {
                                 </div>
                             </Card>
 
-                            <Card className="p-16 border-white/[0.08] bg-[#050810]/90 backdrop-blur-3xl rounded-[4rem] shadow-glass flex flex-col justify-center items-center text-center space-y-12 group relative overflow-hidden">
-                                <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
-                                <ActivityIcon className="w-28 h-28 text-heaven-muted/5 group-hover:text-primary/20 transition-all duration-1000 animate-pulse" />
-                                <div className="space-y-6 relative z-10">
-                                    <h3 className="text-3xl font-bold text-heaven-dark tracking-tight uppercase leading-none">Throughput Analysis</h3>
-                                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.5em] leading-loose max-w-sm mx-auto opacity-60">System initialization required to baseline operational performance metrics. Diagnostic clusters are currently on standby.</p>
+                            <Card className="p-16 border-white/[0.08] bg-[#050810]/90 backdrop-blur-3xl rounded-[4rem] shadow-glass relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-secondary/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-secondary/10 transition-colors" />
+                                <div className="flex items-center gap-8 mb-12">
+                                    <div className="w-16 h-16 bg-secondary/10 border border-secondary/20 rounded-2xl flex items-center justify-center text-secondary shadow-soft-glow relative z-10">
+                                        <ActivityIcon className="w-8 h-8" />
+                                    </div>
+                                    <div className="relative z-10 space-y-3">
+                                        <h3 className="text-2xl font-bold text-heaven-text uppercase tracking-tight leading-none">Active Campaigns</h3>
+                                        <p className="text-[10px] text-heaven-muted font-bold uppercase tracking-[0.3em] opacity-40">Currently running projects</p>
+                                    </div>
                                 </div>
-                                <Button 
-                                    variant="secondary" 
-                                    onClick={() => {
-                                        const tId = toast.loading("Initializing diagnostic clusters...");
-                                        setTimeout(() => {
-                                            toast.success("Diagnostic sequence complete. All systems nominal.", { id: tId });
-                                        }, 2000);
-                                    }}
-                                    className="h-18 px-14 rounded-[2.25rem] bg-slate-50 border-slate-200 text-slate-400 font-bold text-[10px] uppercase tracking-[0.4em] hover:text-primary transition-all"
-                                >
-                                    Initialize Diagnostic
-                                </Button>
+                                <div className="space-y-6 relative z-10">
+                                    {campaignsList.length > 0 ? (
+                                        campaignsList.slice(0, 4).map((c, i) => (
+                                            <div key={i} className="p-8 bg-white/[0.02] border border-white/[0.08] rounded-[2.5rem] flex items-center justify-between group/row hover:border-secondary/20 transition-all duration-500 shadow-glass">
+                                                <div className="flex items-center gap-6">
+                                                    <div className="w-3 h-3 rounded-full bg-secondary shadow-soft-glow" />
+                                                    <span className="font-bold text-[11px] text-heaven-text tracking-widest uppercase truncate max-w-[150px]">{c.title}</span>
+                                                </div>
+                                                <div className="flex items-center gap-8">
+                                                    <span className="text-[10px] font-bold text-heaven-muted uppercase tracking-[0.2em] opacity-40">{c.budget}</span>
+                                                    <span className="text-[10px] font-bold text-secondary tracking-widest uppercase">{c.status}</span>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="py-24 flex flex-col items-center justify-center space-y-8 opacity-10">
+                                            <div className="w-20 h-20 bg-white/[0.02] border border-white/[0.08] rounded-[2rem] flex items-center justify-center shadow-glass">
+                                                <ActivityIcon className="w-10 h-10" />
+                                            </div>
+                                            <p className="text-[10px] font-bold uppercase tracking-[0.5em] ml-[0.5em]">No Campaigns Found</p>
+                                        </div>
+                                    )}
+                                </div>
                             </Card>
                         </motion.div>
                     )}

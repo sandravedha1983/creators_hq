@@ -9,12 +9,22 @@ console.log("Auth routes loaded");
 
 const passport = require('./passport');
 
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+const getFrontendUrl = (req) => {
+    if (req.hostname === 'localhost' || req.hostname === '127.0.0.1') {
+        return 'http://localhost:5173';
+    }
+    return process.env.FRONTEND_URL || 'http://localhost:5173';
+};
 router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.post('/send-otp', authController.sendOTP);
 router.post('/resend-otp', authController.resendOTP);
 router.post('/verify-otp', authController.verifyOTP);
 router.post('/admin-login', authController.adminLogin);
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/reset-password', authController.resetPassword);
 
 // Google OAuth
 router.get("/google",
@@ -22,11 +32,11 @@ router.get("/google",
 );
 
 router.get("/google/callback",
-  passport.authenticate("google", { session: false, failureRedirect: '/login' }),
+  passport.authenticate("google", { session: false, failureRedirect: '/login?error=oauth_failed' }),
   (req, res) => {
     const token = req.user.token;
-    const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
-    res.redirect(`${FRONTEND_URL}/dashboard-redirect?token=${token}`);
+    const redirectUrl = getFrontendUrl(req);
+    res.redirect(`${redirectUrl}/dashboard-redirect?token=${token}`);
   }
 );
 
@@ -36,11 +46,11 @@ router.get("/linkedin",
 );
 
 router.get("/linkedin/callback",
-  passport.authenticate("linkedin", { session: false, failureRedirect: '/login' }),
+  passport.authenticate("linkedin", { session: false, failureRedirect: '/login?error=oauth_failed' }),
   (req, res) => {
     const token = req.user.token;
-    const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
-    res.redirect(`${FRONTEND_URL}/dashboard-redirect?token=${token}`);
+    const redirectUrl = getFrontendUrl(req);
+    res.redirect(`${redirectUrl}/dashboard-redirect?token=${token}`);
   }
 );
 
@@ -54,5 +64,6 @@ router.get("/facebook", (req, res) => {
 router.get("/facebook/callback", authController.facebookCallback);
 
 router.get('/profile', authenticate, authController.getProfile);
+router.put('/profile', authenticate, authController.updateProfile);
 
 module.exports = router;

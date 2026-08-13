@@ -11,7 +11,15 @@ const userSchema = new mongoose.Schema({
   },
   isVerified: { type: Boolean, default: false },
   isBlocked: { type: Boolean, default: false },
+  isSuspended: { type: Boolean, default: false },
   socialHandle: { type: String },
+  avatar: { type: String, default: '' },
+  plan: {
+    type: String,
+    enum: ['free', 'pro'],
+    default: 'free'
+  },
+  isOnboarded: { type: Boolean, default: false },
   verificationStatus: {
     type: String,
     enum: ["not_submitted", "pending", "verified", "rejected"],
@@ -19,6 +27,9 @@ const userSchema = new mongoose.Schema({
   },
   verificationScreenshot: { type: String },
   verificationCode: { type: String },
+  // Password reset
+  resetToken: { type: String },
+  resetTokenExpiry: { type: Date },
   integrations: {
     type: Map,
     of: Boolean,
@@ -53,12 +64,6 @@ const userSchema = new mongoose.Schema({
       verified: { type: Boolean, default: false },
       verifiedAt: { type: Date }
     }
-  },
-  // Legacy compatibility fields
-  integrations: {
-    type: Map,
-    of: Boolean,
-    default: {}
   }
 }, { timestamps: true });
 
