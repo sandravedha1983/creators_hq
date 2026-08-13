@@ -83,6 +83,7 @@ const verifySocial = async (req, res, next) => {
       return res.json({ success: true, verified: true, message: "Already verified" });
     }
 
+    const cleanCode = code.trim().toUpperCase();
     let found = false;
 
     // 1. Try Instagram Web Profile API if platform is instagram
