@@ -1,11 +1,18 @@
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
+const dns = require("dns");
+
+// Force IPv4 lookup order to fix ENETUNREACH IPv6 errors on Render cloud hosting
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
 
 // SMTP Transport Configuration
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp.gmail.com",
   port: parseInt(process.env.SMTP_PORT || "465"),
   secure: process.env.SMTP_PORT === "587" ? false : true,
+  family: 4, // Force IPv4
   auth: {
     user: process.env.EMAIL_USER || process.env.SMTP_USER,
     pass: process.env.EMAIL_PASS || process.env.SMTP_PASS
