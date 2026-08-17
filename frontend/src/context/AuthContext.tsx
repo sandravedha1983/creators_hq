@@ -88,9 +88,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 localStorage.removeItem('creatorshq_verified');
                 localStorage.removeItem('role');
                 setIsInitializing(false);
-                if (window.location.pathname !== '/login' && window.location.pathname !== '/signup') {
-                    window.location.href = '/login';
-                }
             });
         } else if (storedUser && storedAuth === 'true' && !isVerifiedLocal) {
             // User logged in but hasn't verified OTP yet (no token yet)
@@ -116,8 +113,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.removeItem('creatorshq_auth');
             localStorage.removeItem('creatorshq_verified');
             localStorage.removeItem('role');
-            // Redirect to login
-            window.location.href = '/login';
+            
+            // Redirect to login only if not already there or signing up
+            const path = window.location.pathname;
+            if (path !== '/login' && path !== '/signup') {
+                window.location.href = '/login';
+            }
         };
         window.addEventListener('auth:expired', handleAuthExpired);
         

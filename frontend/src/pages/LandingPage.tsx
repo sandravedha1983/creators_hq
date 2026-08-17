@@ -1,5 +1,5 @@
 import React from 'react';
-import logo from "@/assets/OIP (1).webp"
+import { Logo } from "@/components/ui/Logo"
 import { motion } from 'framer-motion';
 import {
     Layers, Zap, Users, BarChart3, ShieldCheck,
@@ -18,7 +18,6 @@ import { cn } from "@/utils/cn";
 import creatorImg from "@/assets/creator_visual.png";
 import brandImg from "@/assets/brand_visual.png";
 import heroVideo from "@/assets/istockphoto-2033341126-640_adpp_is.mp4";
-import heroAvatar from "@/assets/hero_avatar.png";
 
 const IMAGES = {
     CREATOR: creatorImg,
@@ -32,6 +31,118 @@ const Section = ({ children, className, id }: { children: React.ReactNode, class
         </div>
     </section>
 );
+
+function PlatformPreview({ activeTab }: { activeTab: 'creator' | 'brand' }) {
+    return (
+        <div className="relative w-full h-full min-h-[480px] bg-gradient-to-br from-[#0A0F1D]/80 to-[#050810]/95 backdrop-blur-3xl border border-white/[0.08] rounded-[3.5rem] p-6 sm:p-10 shadow-glass overflow-hidden flex flex-col justify-between group/preview select-none">
+            {/* Soft decorative light */}
+            <div className="absolute -top-12 -left-12 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none group-hover/preview:bg-primary/20 transition-all duration-1000" />
+            <div className="absolute -bottom-12 -right-12 w-64 h-64 bg-secondary/10 rounded-full blur-3xl pointer-events-none group-hover/preview:bg-secondary/20 transition-all duration-1000" />
+            
+            {/* Header bar of the dashboard preview */}
+            <div className="flex items-center justify-between border-b border-white/[0.05] pb-6">
+                <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 rounded-full bg-rose-500/80" />
+                    <div className="w-3 h-3 rounded-full bg-amber-500/80" />
+                    <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
+                </div>
+                <div className="px-5 py-2.5 bg-white/[0.03] border border-white/[0.05] rounded-full text-[9px] font-bold text-heaven-muted uppercase tracking-[0.2em]">
+                    {activeTab === 'creator' ? 'creator_operating_system' : 'brand_precision_console'}
+                </div>
+            </div>
+
+            {/* Main content of dashboard preview */}
+            <div className="flex-1 my-8 space-y-8">
+                {activeTab === 'creator' ? (
+                    // Creator Workspace Content
+                    <div className="space-y-6 animate-fade-in">
+                        {/* Sparkles AI Studio preview */}
+                        <div className="p-5 bg-white/[0.02] border border-white/[0.05] rounded-2xl space-y-4 shadow-glass">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <Sparkles className="w-4 h-4 text-primary animate-pulse" />
+                                    <span className="text-xs font-black text-white uppercase tracking-wider">AI Content Studio</span>
+                                </div>
+                                <span className="text-[8px] font-bold text-primary uppercase tracking-widest bg-primary/10 px-2 py-0.5 rounded">Vanguard AI</span>
+                            </div>
+                            <div className="text-[11px] text-heaven-muted opacity-80 leading-relaxed font-bold uppercase tracking-wider">
+                                System Suggestion: <span className="text-white italic">"3 secrets to 10x engagement with design hooks..."</span>
+                            </div>
+                        </div>
+
+                        {/* Graph */}
+                        <div className="p-5 bg-white/[0.02] border border-white/[0.05] rounded-2xl space-y-4">
+                            <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-heaven-muted uppercase tracking-wider">Viral Growth Matrix</span>
+                                <span className="text-xs font-black text-emerald-400">+142%</span>
+                            </div>
+                            <svg className="w-full h-24 overflow-visible" viewBox="0 0 300 100">
+                                <defs>
+                                    <linearGradient id="gradient-glow" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="rgb(99, 102, 241)" stopOpacity="0.2" />
+                                        <stop offset="100%" stopColor="rgb(99, 102, 241)" stopOpacity="0.0" />
+                                    </linearGradient>
+                                </defs>
+                                <path 
+                                    d="M 0 90 Q 50 80 80 60 T 150 50 T 220 20 T 300 10" 
+                                    fill="none" 
+                                    stroke="url(#gradient-glow)" 
+                                    strokeWidth="20"
+                                    strokeLinecap="round"
+                                />
+                                <path 
+                                    d="M 0 90 Q 50 80 80 60 T 150 50 T 220 20 T 300 10" 
+                                    fill="none" 
+                                    stroke="rgb(99, 102, 241)" 
+                                    strokeWidth="3.5"
+                                    strokeLinecap="round"
+                                />
+                                <circle cx="300" cy="10" r="5" fill="rgb(99, 102, 241)" className="animate-ping" />
+                                <circle cx="300" cy="10" r="3.5" fill="#fff" />
+                            </svg>
+                        </div>
+                    </div>
+                ) : (
+                    // Brand Workspace Content
+                    <div className="space-y-6 animate-fade-in">
+                        <div className="space-y-4">
+                            <span className="text-[10px] font-bold text-heaven-muted uppercase tracking-wider block">Live Partnership Pipelines</span>
+                            {[
+                                { name: "Summer Campaign Brief", budget: "₹85,000", creators: "6 Connected", match: "98%" },
+                                { name: "Interactive Video Reels", budget: "₹1,20,000", creators: "4 Connected", match: "95%" }
+                            ].map((c, i) => (
+                                <div key={i} className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl flex items-center justify-between hover:bg-white/[0.04] transition-colors shadow-glass">
+                                    <div className="space-y-1">
+                                        <div className="text-[11px] font-black text-white uppercase tracking-wider">{c.name}</div>
+                                        <div className="text-[9px] text-heaven-muted/60 uppercase tracking-widest">{c.creators}</div>
+                                    </div>
+                                    <div className="text-right space-y-1">
+                                        <div className="text-[11px] font-black text-secondary">{c.budget}</div>
+                                        <div className="text-[8px] font-bold text-emerald-400 uppercase tracking-wider bg-emerald-500/10 px-1.5 py-0.5 rounded">{c.match} Match</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Lower dashboard preview statistics grid */}
+            <div className="grid grid-cols-3 gap-4 border-t border-white/[0.05] pt-6">
+                {[
+                    { label: activeTab === 'creator' ? 'Audience Pulse' : 'Brand Reach', val: activeTab === 'creator' ? '248.6K' : '1.4M' },
+                    { label: activeTab === 'creator' ? 'Ledger balance' : 'Active briefs', val: activeTab === 'creator' ? '₹14.2K' : '12' },
+                    { label: 'System status', val: 'Active', color: 'text-emerald-400' }
+                ].map((stat, i) => (
+                    <div key={i} className="text-left space-y-1">
+                        <div className="text-[8px] font-bold text-heaven-muted uppercase tracking-wider opacity-60">{stat.label}</div>
+                        <div className={cn("text-sm font-black text-white tracking-tight", stat.color)}>{stat.val}</div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
 
 export function LandingPage() {
     const [activeTab, setActiveTab] = React.useState<'creator' | 'brand'>('creator');
@@ -49,9 +160,7 @@ export function LandingPage() {
             <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/[0.05] bg-dark/40 backdrop-blur-2xl">
                 <div className="max-w-7xl mx-auto px-8 md:px-12 py-6 flex items-center justify-between">
                     <div className="flex items-center gap-4 group cursor-pointer">
-                        <div className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-soft-glow relative overflow-hidden bg-button-gradient">
-                            <img src={logo} alt="Logo" className="w-full h-full object-cover relative z-10" />
-                        </div>
+                        <Logo size="md" />
                         <span className="text-2xl font-bold tracking-tight text-heaven-text group-hover:text-primary transition-all duration-500 uppercase">CreatorsHQ</span>
                     </div>
 
@@ -162,18 +271,9 @@ export function LandingPage() {
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-                                className="relative z-10 aspect-[4/5] rounded-[4rem] overflow-hidden border border-white/[0.08] shadow-glass group/avatar"
+                                className="relative z-10 overflow-hidden"
                             >
-                                <motion.img
-                                    key={activeTab}
-                                    initial={{ opacity: 0, scale: 1.1 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    transition={{ duration: 1 }}
-                                    src={activeTab === 'creator' ? heroAvatar : IMAGES.BRAND}
-                                    alt="Elite Visual"
-                                    className="w-full h-full object-cover group-hover/avatar:scale-110 transition-all duration-1000"
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-t from-dark/60 via-transparent to-transparent opacity-60" />
+                                <PlatformPreview activeTab={activeTab} />
                             </motion.div>
 
                             {/* Floating Interaction Nodes */}

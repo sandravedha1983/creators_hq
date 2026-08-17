@@ -1,25 +1,35 @@
 import React, { useState } from 'react';
-import logo from "@/assets/OIP (1).webp"
+import { Logo } from "@/components/ui/Logo"
 import { toast } from 'react-hot-toast';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
-import { Spinner } from '@/components/ui/Spinner';
-import { Layers, Mail, Lock, Zap, Shield, User, ArrowRight } from 'lucide-react';
-import { cn } from '@/utils/cn';
+import { Mail, Lock, Shield, ArrowRight } from 'lucide-react';
 import loginVideo from "@/assets/istockphoto-2189725457-640_adpp_is.mp4";
 
 export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const { login } = useAuth();
+    const { login, isAuthenticated, isVerified, user } = useAuth();
     const navigate = useNavigate();
+
+    React.useEffect(() => {
+        if (isAuthenticated && isVerified && user) {
+            const roleRedirects: Record<string, string> = {
+                creator: '/creator-dashboard',
+                brand: '/brand-dashboard',
+                admin: '/admin-dashboard'
+            };
+            navigate(roleRedirects[user.role] || '/dashboard', { replace: true });
+        }
+    }, [isAuthenticated, isVerified, user, navigate]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isLoading) return;
         setIsLoading(true);
         const toastId = toast.loading('Establishing Neural Link...');
         try {
@@ -27,7 +37,22 @@ export default function Login() {
             toast.success('Neural Access Granted. Verify Identity.', { id: toastId });
             navigate('/verify-otp');
         } catch (err: any) {
-            toast.error('Neural Mismatch. Check Credentials.', { id: toastId });
+            console.error("Login authentication error:", err);
+            let userFriendlyMsg = 'Neural Mismatch. Check Credentials.';
+            if (err.message) {
+                if (err.message.includes('Invalid email or password')) {
+                    userFriendlyMsg = 'Invalid email or password. Please check your credentials and try again.';
+                } else if (err.message.toLowerCase().includes('connect') || err.message.toLowerCase().includes('network') || err.message.toLowerCase().includes('failed to fetch')) {
+                    userFriendlyMsg = 'Unable to connect to the server. Please try again in a moment.';
+                } else if (err.message.includes('expired')) {
+                    userFriendlyMsg = 'Your session has expired. Please log in again.';
+                } else {
+                    userFriendlyMsg = err.message;
+                }
+            } else if (err.error) {
+                userFriendlyMsg = err.error;
+            }
+            toast.error(userFriendlyMsg, { id: toastId });
         } finally {
             setIsLoading(false);
         }
@@ -37,8 +62,6 @@ export default function Login() {
         const baseURL = import.meta.env.VITE_API_URL || "";
         window.location.href = `${baseURL}/api/auth/${service.toLowerCase()}`;
     };
-
-    if (isLoading) return <Spinner />;
 
     return (
         <div className="min-h-screen bg-dark flex items-center justify-center p-6 relative overflow-hidden font-sans">
@@ -62,9 +85,7 @@ export default function Login() {
                 <div className="absolute top-0 inset-x-0 h-1.5 bg-button-gradient shadow-soft-glow" />
 
                 <div className="flex flex-col items-center mb-12 sm:mb-16 text-center">
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-[1.75rem] sm:rounded-[2rem] flex items-center justify-center mb-8 sm:mb-10 shadow-glass group-hover:rotate-6 transition-all duration-700 overflow-hidden bg-primary/10 border border-primary/20">
-                        <img src={logo} alt="Logo" className="w-full h-full object-cover relative z-10" />
-                    </div>
+                    <Logo size="lg" className="mb-8 group-hover:rotate-6 transition-all duration-700" />
                     <h1 className="text-3xl sm:text-4xl font-bold text-heaven-text tracking-tighter leading-none mb-2">Welcome Back</h1>
                     <p className="text-heaven-muted text-[9px] sm:text-[10px] mt-4 sm:mt-6 font-bold uppercase tracking-[0.3em] sm:tracking-[0.4em] flex items-center gap-2 sm:gap-3 opacity-70">
                         <Shield className="w-3 h-3 sm:w-4 sm:h-4 text-primary" />
@@ -86,6 +107,7 @@ export default function Login() {
                                 onChange={(e) => setEmail(e.target.value)}
                                 className="h-16 sm:h-18 bg-black/40 border-white/[0.08] rounded-xl sm:rounded-2xl focus:border-primary/30 focus:bg-black/60 transition-all outline-none pl-14 sm:pl-16 pr-8 font-bold text-heaven-text placeholder:text-heaven-text/50 text-[11px]"
                                 required
+                                disabled={isLoading}
                             />
                         </div>
                     </div>
@@ -106,11 +128,12 @@ export default function Login() {
                                 onChange={(e) => setPassword(e.target.value)}
                                 className="h-16 sm:h-18 bg-black/40 border-white/[0.08] rounded-xl sm:rounded-2xl focus:border-primary/30 focus:bg-black/60 transition-all outline-none pl-14 sm:pl-16 pr-8 font-bold text-heaven-text placeholder:text-heaven-text/50"
                                 required
+                                disabled={isLoading}
                             />
                         </div>
                     </div>
 
-                    <Button type="submit" variant="primary" className="w-full h-18 sm:h-22 text-[10px] sm:text-[11px] font-bold rounded-[2rem] sm:rounded-[2.5rem] shadow-soft-glow hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-4 mt-4">
+                    <Button type="submit" variant="primary" isLoading={isLoading} disabled={isLoading} className="w-full h-18 sm:h-22 text-[10px] sm:text-[11px] font-bold rounded-[2rem] sm:rounded-[2.5rem] shadow-soft-glow hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-4 mt-4">
                         Sign In <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-2" />
                     </Button>
                 </form>

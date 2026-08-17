@@ -89,6 +89,7 @@ export default function VerifyOtp() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isLoading) return;
         const otpString = otp.join('');
         
         if (otpString.length !== 6) {

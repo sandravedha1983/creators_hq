@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import logo from "@/assets/OIP (1).webp"
+import { Logo } from "@/components/ui/Logo"
 import {
     LayoutDashboard,
     Users,
@@ -109,16 +109,7 @@ export function Sidebar({ isOpen, setIsOpen }: { isOpen?: boolean, setIsOpen?: (
             isOpen ? "translate-x-0 shadow-2xl shadow-primary/20" : "-translate-x-full lg:translate-x-0"
         )}>
             <div className="p-8 pb-6 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden shadow-soft-glow relative group">
-                        <img src={logo} alt="Logo" className="w-full h-full object-cover relative z-10" />
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="text-lg font-bold tracking-tight text-white uppercase">
-                            CreatorsHQ
-                        </span>
-                    </div>
-                </div>
+                <Logo size="sm" showText />
                 <button 
                     onClick={() => setIsOpen?.(false)}
                     className="lg:hidden p-2 text-heaven-muted hover:text-white transition-colors"
