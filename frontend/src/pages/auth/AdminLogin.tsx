@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import logo from "@/assets/OIP (1).webp"
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';

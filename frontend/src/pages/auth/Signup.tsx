@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import logo from "@/assets/OIP (1).webp"
+import { Logo } from '@/components/ui/Logo';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useAuth, UserRole } from '@/context/AuthContext';
@@ -77,9 +77,7 @@ export default function Signup() {
                 <div className="absolute top-0 inset-x-0 h-1.5 bg-button-gradient shadow-soft-glow" />
 
                 <div className="flex flex-col items-center mb-14 relative z-10 text-center">
-                    <div className="w-20 h-20 rounded-[2rem] flex items-center justify-center mb-10 shadow-glass group-hover:rotate-6 transition-all duration-700 overflow-hidden bg-primary/10 border border-primary/20">
-                        <img src={logo} alt="Logo" className="w-full h-full object-cover relative z-10" />
-                    </div>
+                    <Logo size="lg" className="mb-10 group-hover:rotate-6 transition-all duration-700" />
                     <h1 className="text-4xl font-bold text-heaven-text tracking-tighter leading-none mb-2">Join the Ecosystem</h1>
                     <p className="text-heaven-muted text-[10px] mt-6 font-bold uppercase tracking-[0.4em] opacity-70">Choose your role and begin your creative journey.</p>
                 </div>
