@@ -14,6 +14,7 @@ export default function ForgotPassword() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isLoading) return;
         setIsLoading(true);
         try {
             await API.post('/api/auth/forgot-password', { email });

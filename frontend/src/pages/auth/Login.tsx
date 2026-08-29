@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Logo } from "@/components/ui/Logo"
 import { toast } from 'react-hot-toast';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -15,8 +15,25 @@ export default function Login() {
     const [isLoading, setIsLoading] = useState(false);
     const { login, isAuthenticated, isVerified, user } = useAuth();
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
 
-    React.useEffect(() => {
+    // Handle OAuth error redirects
+    useEffect(() => {
+        const error = searchParams.get('error');
+        if (error) {
+            const errorMessages: Record<string, string> = {
+                google_not_configured: 'Google Sign In is temporarily unavailable. Please use email login.',
+                linkedin_not_configured: 'LinkedIn Sign In is temporarily unavailable. Please use email login.',
+                oauth_failed: 'Social sign-in failed. Please try again or use email login.',
+            };
+            toast.error(errorMessages[error] || 'Sign-in error. Please try again.');
+            // Clean the URL
+            searchParams.delete('error');
+            setSearchParams(searchParams, { replace: true });
+        }
+    }, []);
+
+    useEffect(() => {
         if (isAuthenticated && isVerified && user) {
             const roleRedirects: Record<string, string> = {
                 creator: '/creator-dashboard',
@@ -150,7 +167,8 @@ export default function Login() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8">
                     <button
                         onClick={() => handleSocialLogin('Google')}
-                        className="h-16 sm:h-18 rounded-[1.5rem] sm:rounded-[1.75rem] font-bold text-[9px] uppercase tracking-widest bg-white/[0.04] hover:bg-white/[0.06] flex items-center justify-center gap-4 border border-white/[0.08] text-heaven-muted hover:text-heaven-text transition-all shadow-glass"
+                        disabled={isLoading}
+                        className="h-16 sm:h-18 rounded-[1.5rem] sm:rounded-[1.75rem] font-bold text-[9px] uppercase tracking-widest bg-white/[0.04] hover:bg-white/[0.06] flex items-center justify-center gap-4 border border-white/[0.08] text-heaven-muted hover:text-heaven-text transition-all shadow-glass disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <svg className="w-4 h-4 opacity-60" viewBox="0 0 24 24">
                             <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -162,7 +180,8 @@ export default function Login() {
                     </button>
                     <button
                         onClick={() => handleSocialLogin('LinkedIn')}
-                        className="h-16 sm:h-18 rounded-[1.5rem] sm:rounded-[1.75rem] font-bold text-[9px] uppercase tracking-widest bg-white/[0.04] hover:bg-white/[0.06] flex items-center justify-center gap-4 border border-white/[0.08] text-heaven-muted hover:text-heaven-text transition-all shadow-glass"
+                        disabled={isLoading}
+                        className="h-16 sm:h-18 rounded-[1.5rem] sm:rounded-[1.75rem] font-bold text-[9px] uppercase tracking-widest bg-white/[0.04] hover:bg-white/[0.06] flex items-center justify-center gap-4 border border-white/[0.08] text-heaven-muted hover:text-heaven-text transition-all shadow-glass disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <svg className="w-4 h-4 fill-[#0A66C2] opacity-60" viewBox="0 0 24 24">
                             <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.32 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.79M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z" />

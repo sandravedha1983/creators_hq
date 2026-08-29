@@ -16,6 +16,7 @@ export default function Signup() {
     const [password, setPassword] = useState('');
     const [role, setRole] = useState<UserRole>('creator');
     const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
     const { signup } = useAuth();
     const navigate = useNavigate();
 
@@ -25,11 +26,14 @@ export default function Signup() {
 
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isLoading) return;
+        setIsLoading(true);
         setError('');
 
         if (!validateEmail(email)) {
             setError('Please enter a valid email address.');
             toast.error('Onboarding Failed');
+            setIsLoading(false);
             return;
         }
 
@@ -40,8 +44,12 @@ export default function Signup() {
             toast.success('Access Code Sent to Registered Mail ID', { id: toastId });
             navigate('/verify-otp');
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Neural Link Interrupted. Please retry.');
+            console.error("Signup error:", err);
+            const userFriendlyMsg = err.message || err.error || 'Neural Link Interrupted. Please retry.';
+            setError(userFriendlyMsg);
             toast.error('Onboarding Failed', { id: toastId });
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -164,7 +172,7 @@ export default function Signup() {
 
                     {error && <p className="text-rose-500 text-[10px] mt-4 ml-2 font-bold uppercase tracking-widest animate-pulse italic">{error}</p>}
 
-                    <Button type="submit" variant="primary" className="w-full h-22 text-[11px] font-bold rounded-[2.5rem] shadow-soft-glow hover:scale-[1.02] active:scale-[0.98] transition-all border-0 mt-8">
+                    <Button type="submit" variant="primary" isLoading={isLoading} disabled={isLoading} className="w-full h-22 text-[11px] font-bold rounded-[2.5rem] shadow-soft-glow hover:scale-[1.02] active:scale-[0.98] transition-all border-0 mt-8">
                         Create Account <ArrowRight className="w-5 h-5 ml-4" />
                     </Button>
                 </form>

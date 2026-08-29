@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const { sendOTP: sendOTPEmail, sendWelcomeEmail, sendPasswordResetEmail, generateResetToken } = require('../../utils/mailer');
 const User = require('./models');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 
 const register = async (req, res, next) => {
   try {
@@ -21,17 +22,18 @@ const register = async (req, res, next) => {
     // Generate and send OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 5 * 60000); // 5 minutes
+    const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
 
     await Otp.findOneAndUpdate(
       { email: user.email },
-      { otp, expiresAt },
-      { upsert: true, new: true }
+      { otp: hashedOtp, expiresAt },
+      { upsert: true, returnDocument: 'after' }
     );
 
     sendOTPEmail(user.email, otp).catch(err => {
         console.error(`[MAIL ERROR] Registration OTP email failed for ${user.email}:`, err.message);
     });
-    console.log(`[AUTH] Registration OTP generated for ${user.email} (OTP: ${otp})`);
+    console.log(`[AUTH] Registration OTP generated for ${user.email}`);
 
     res.status(201).json({ 
         success: true, 
@@ -55,12 +57,13 @@ const login = async (req, res, next) => {
     // Credentials valid, now send OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 5 * 60000); // 5 minutes
+    const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
 
     console.log(`[AUTH] Saving OTP for ${user.email}...`);
     await Otp.findOneAndUpdate(
       { email: user.email },
-      { otp, expiresAt },
-      { upsert: true, new: true }
+      { otp: hashedOtp, expiresAt },
+      { upsert: true, returnDocument: 'after' }
     );
 
     console.log(`[AUTH] Sending Email to ${user.email}...`);
@@ -106,7 +109,7 @@ const updateProfile = async (req, res, next) => {
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { $set: updates },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     ).select('-password_hash -resetToken -resetTokenExpiry');
 
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
@@ -121,19 +124,44 @@ const sendOTP = async (req, res, next) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
 
-    const user = await User.findOne({ email });
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+
+    // Rate Limiting Check (min 30 seconds interval)
+    const existingOtp = await Otp.findOne({ email: normalizedEmail });
+    if (existingOtp) {
+      const timeElapsed = Date.now() - new Date(existingOtp.updatedAt).getTime();
+      const minInterval = 30000; // 30 seconds
+      if (timeElapsed < minInterval) {
+        const secondsLeft = Math.ceil((minInterval - timeElapsed) / 1000);
+        return res.status(429).json({ 
+          success: false, 
+          message: `Please wait ${secondsLeft} second(s) before requesting another code.` 
+        });
+      }
+    }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 5 * 60000); // 5 minutes
+    const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
 
     await Otp.findOneAndUpdate(
-      { email },
-      { otp, expiresAt },
-      { upsert: true, new: true }
+      { email: normalizedEmail },
+      { otp: hashedOtp, expiresAt },
+      { upsert: true, returnDocument: 'after' }
     );
 
-    await sendOTPEmail(email, otp);
+    try {
+      await sendOTPEmail(normalizedEmail, otp);
+    } catch (mailErr) {
+      console.error(`[MAIL ERROR] Failed to send OTP to ${normalizedEmail}:`, mailErr.message);
+      return res.status(500).json({
+        success: false,
+        message: "We couldn't send the verification code. Please try again."
+      });
+    }
+
     res.json({ success: true, message: 'OTP sent successfully' });
   } catch (error) {
     next(error);
@@ -149,7 +177,9 @@ const verifyOTP = async (req, res, next) => {
     const { email, otp } = req.body;
     if (!email || !otp) return res.status(400).json({ success: false, message: 'Email and Code required' });
 
-    const otpRecord = await Otp.findOne({ email, otp });
+    const normalizedEmail = email.trim().toLowerCase();
+    const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+    const otpRecord = await Otp.findOne({ email: normalizedEmail, otp: hashedOtp });
     
     if (!otpRecord) {
       return res.status(400).json({ success: false, message: 'Invalid OTP' });
@@ -160,7 +190,7 @@ const verifyOTP = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'OTP Expired' });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
     // Mark as verified if not already + send welcome email on first verification
@@ -207,13 +237,15 @@ const verifyOTP = async (req, res, next) => {
 const adminLogin = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-    if (email === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const adminEmail = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
+    if (normalizedEmail === adminEmail && password === process.env.ADMIN_PASSWORD) {
       const token = jwt.sign(
         { id: 'admin', role: 'admin' },
         process.env.JWT_SECRET,
         { expiresIn: '1d' }
       );
-      return res.json({ success: true, token, user: { email, role: 'admin' } });
+      return res.json({ success: true, token, user: { email: adminEmail, role: 'admin' } });
     }
     res.status(401).json({ success: false, message: 'Invalid Admin Credentials' });
   } catch (error) {
@@ -226,7 +258,8 @@ const forgotPassword = async (req, res, next) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
 
-    const user = await User.findOne({ email });
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
       // Don't reveal whether the email exists — return success either way
       return res.json({ success: true, message: 'If an account exists with that email, a reset link has been sent.' });
@@ -239,8 +272,8 @@ const forgotPassword = async (req, res, next) => {
     user.resetTokenExpiry = resetTokenExpiry;
     await user.save();
 
-    await sendPasswordResetEmail(email, resetToken);
-    console.log(`[AUTH] Password reset email sent to ${email}`);
+    await sendPasswordResetEmail(normalizedEmail, resetToken);
+    console.log(`[AUTH] Password reset email sent to ${normalizedEmail}`);
 
     res.json({ success: true, message: 'If an account exists with that email, a reset link has been sent.' });
   } catch (error) {
@@ -259,7 +292,8 @@ const resetPassword = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
     }
 
-    const user = await User.findOne({ email, resetToken: token });
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail, resetToken: token });
     if (!user) {
       return res.status(400).json({ success: false, message: 'Invalid or expired reset token' });
     }
@@ -277,7 +311,7 @@ const resetPassword = async (req, res, next) => {
     user.resetTokenExpiry = undefined;
     await user.save();
 
-    console.log(`[AUTH] Password reset successful for ${email}`);
+    console.log(`[AUTH] Password reset successful for ${normalizedEmail}`);
 
     res.json({ success: true, message: 'Password has been reset successfully. You can now login with your new password.' });
   } catch (error) {

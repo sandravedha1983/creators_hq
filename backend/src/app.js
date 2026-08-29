@@ -21,16 +21,25 @@ app.use(passport.initialize());
 
 // CORS: Use specific origin instead of wildcard when credentials are enabled
 const allowedOrigins = [
-    process.env.FRONTEND_URL || 'http://localhost:5173',
+    process.env.FRONTEND_URL,
     'http://localhost:5173',
     'http://localhost:3000'
 ].filter(Boolean);
 
 app.use(cors({
     origin: function (origin, callback) {
-        // Dynamically reflect the request origin to allow any client domain (Vercel, localhost, etc.)
-        // while still supporting credentials: true
-        callback(null, origin || '*');
+        // Allow requests with no origin (like mobile apps, curl, postman)
+        if (!origin) return callback(null, true);
+        
+        const isAllowed = allowedOrigins.includes(origin) || 
+                          origin.startsWith('http://localhost:') || 
+                          origin.endsWith('.vercel.app');
+                          
+        if (isAllowed) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
     },
     credentials: true,
     optionsSuccessStatus: 200
@@ -39,7 +48,9 @@ app.use(cors({
 app.use(express.json());
 
 app.use((req, res, next) => {
-    console.log("API HIT:", req.method, req.url);
+    if (process.env.NODE_ENV !== 'production') {
+        console.log("API HIT:", req.method, req.url);
+    }
     next();
 });
 
@@ -84,29 +95,16 @@ app.use('/uploads', express.static('uploads'));
 // Convenience API Aliases (Phase 7 — API Audit)
 // ============================================================
 const { authenticate } = require('./middleware/auth');
+const authController = require('./modules/auth/controllers');
 
 // GET /api/profile → proxy to /api/auth/profile
-app.get('/api/profile', authenticate, async (req, res, next) => {
-    try {
-        const authService = require('./modules/auth/services');
-        const user = await authService.getProfile(req.user.id);
-        res.json({ success: true, data: user });
-    } catch (error) {
-        next(error);
-    }
-});
+app.get('/api/profile', authenticate, authController.getProfile);
 
 // POST /api/login → proxy to /api/auth/login
-app.post('/api/login', (req, res, next) => {
-    req.url = '/login';
-    require('./modules/auth/routes').handle(req, res, next);
-});
+app.post('/api/login', authController.login);
 
 // POST /api/signup → proxy to /api/auth/register
-app.post('/api/signup', (req, res, next) => {
-    req.url = '/register';
-    require('./modules/auth/routes').handle(req, res, next);
-});
+app.post('/api/signup', authController.register);
 
 // POST /api/logout
 app.post('/api/logout', (req, res) => {
@@ -115,16 +113,10 @@ app.post('/api/logout', (req, res) => {
 });
 
 // POST /api/forgot-password → proxy to auth module
-app.post('/api/forgot-password', (req, res, next) => {
-    const authController = require('./modules/auth/controllers');
-    authController.forgotPassword(req, res, next);
-});
+app.post('/api/forgot-password', authController.forgotPassword);
 
 // POST /api/reset-password → proxy to auth module
-app.post('/api/reset-password', (req, res, next) => {
-    const authController = require('./modules/auth/controllers');
-    authController.resetPassword(req, res, next);
-});
+app.post('/api/reset-password', authController.resetPassword);
 
 // GET /api/dashboard → auto-route by role
 app.get('/api/dashboard', authenticate, async (req, res, next) => {
@@ -161,7 +153,7 @@ app.use((req, res, next) => {
 });
 
 app.use((err, req, res, next) => {
-  console.error("ERROR:", err.message);
+  console.error("ERROR:", err.message || err);
   
   // Handle Zod Validation Errors
   if (err.name === 'ZodError' || err.errors) {
@@ -173,13 +165,32 @@ app.use((err, req, res, next) => {
   }
 
   // Handle Auth Errors
-  if (err.message.includes('Invalid email or password') || err.message.includes('User not found')) {
-    return res.status(401).json({ success: false, message: err.message });
+  if (err.message && (err.message.includes('Invalid email or password') || err.message.includes('User not found'))) {
+    return res.status(401).json({ success: false, message: 'Invalid email or password. Please check your credentials and try again.' });
   }
 
-  res.status(err.status || 500).json({ 
+  if (err.message && err.message.includes('User already exists')) {
+    return res.status(400).json({ success: false, message: 'User already exists' });
+  }
+
+  // Handle OTP errors
+  if (err.message && (err.message.includes('Invalid OTP') || err.message.includes('OTP Expired'))) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+
+  // Handle rate limit errors
+  if (err.status === 429) {
+    return res.status(429).json({ success: false, message: err.message });
+  }
+
+  // Sanitize generic internal server errors for production
+  const isProduction = process.env.NODE_ENV === 'production';
+  const status = err.status || 500;
+  const message = isProduction ? 'An unexpected error occurred. Please try again.' : (err.message || 'Internal Server Error');
+
+  res.status(status).json({ 
     success: false, 
-    message: err.message || 'Internal Server Error' 
+    message
   });
 });
 
