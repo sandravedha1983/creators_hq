@@ -19,12 +19,16 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
         return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
-    if (isAuthenticated && !isVerified && location.pathname !== '/verify-otp') {
+    // Use localStorage as a synchronous fallback to prevent flash-redirect during
+    // the async gap between navigate() and React state propagation on direct JWT login.
+    const localVerified = localStorage.getItem('creatorshq_verified') === 'true';
+    const effectivelyVerified = isVerified || localVerified;
+
+    if (!effectivelyVerified && location.pathname !== '/verify-otp' && location.pathname !== '/verify-account') {
         return <Navigate to="/verify-otp" replace />;
     }
 
     if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-        // Redirect to their own dashboard if they try to access another role's area
         const roleRedirects: Record<string, string> = {
             creator: '/creator-dashboard',
             brand: '/brand-dashboard',
