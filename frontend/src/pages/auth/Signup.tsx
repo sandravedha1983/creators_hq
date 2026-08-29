@@ -45,7 +45,7 @@ export default function Signup() {
             navigate('/verify-otp');
         } catch (err: any) {
             console.error("Signup error:", err);
-            const userFriendlyMsg = err.message || err.error || 'Neural Link Interrupted. Please retry.';
+            const userFriendlyMsg = err.response?.data?.message || err.message || err.error || 'Neural Link Interrupted. Please retry.';
             setError(userFriendlyMsg);
             toast.error('Onboarding Failed', { id: toastId });
         } finally {
