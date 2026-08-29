@@ -13,7 +13,7 @@ const register = async (req, res, next) => {
   try {
     const validatedData = registerSchema.parse(req.body);
     const user = await authService.register(validatedData);
-    
+
     // Initialize empty Analytics for the new user
     await Analytics.create({
       userId: user._id
@@ -46,14 +46,14 @@ const register = async (req, res, next) => {
 
     console.log(`[AUTH] Registration OTP generated and sent for ${user.email}`);
 
-    res.status(201).json({ 
-        success: true, 
-        message: 'Registration successful. OTP sent.',
-        user: {
-            name: user.name,
-            email: user.email,
-            role: user.role
-        }
+    res.status(201).json({
+      success: true,
+      message: 'Registration successful. OTP sent.',
+      user: {
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
     });
   } catch (error) {
     next(error);
@@ -64,7 +64,7 @@ const login = async (req, res, next) => {
   try {
     const validatedData = loginSchema.parse(req.body);
     const user = await authService.login(validatedData);
-    
+
     // Credentials valid, now send OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 5 * 60000); // 5 minutes
@@ -91,14 +91,14 @@ const login = async (req, res, next) => {
 
     console.log(`[AUTH] Login success response for ${user.email}`);
 
-    res.json({ 
-        success: true, 
-        message: 'Credentials verified. OTP sent.',
-        user: {
-            name: user.name,
-            email: user.email,
-            role: user.role
-        }
+    res.json({
+      success: true,
+      message: 'Credentials verified. OTP sent.',
+      user: {
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
     });
   } catch (error) {
     next(error);
@@ -152,9 +152,9 @@ const sendOTP = async (req, res, next) => {
       const minInterval = 30000; // 30 seconds
       if (timeElapsed < minInterval) {
         const secondsLeft = Math.ceil((minInterval - timeElapsed) / 1000);
-        return res.status(429).json({ 
-          success: false, 
-          message: `Please wait ${secondsLeft} second(s) before requesting another code.` 
+        return res.status(429).json({
+          success: false,
+          message: `Please wait ${secondsLeft} second(s) before requesting another code.`
         });
       }
     }
@@ -197,7 +197,7 @@ const verifyOTP = async (req, res, next) => {
     const normalizedEmail = email.trim().toLowerCase();
     const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
     const otpRecord = await Otp.findOne({ email: normalizedEmail, otp: hashedOtp });
-    
+
     if (!otpRecord) {
       return res.status(400).json({ success: false, message: 'Invalid OTP' });
     }
@@ -213,8 +213,8 @@ const verifyOTP = async (req, res, next) => {
     // Mark as verified if not already + send welcome email on first verification
     const isFirstVerification = !user.isVerified;
     if (!user.isVerified) {
-        user.isVerified = true;
-        await user.save();
+      user.isVerified = true;
+      await user.save();
     }
 
     await Otp.deleteOne({ _id: otpRecord._id });
@@ -232,9 +232,9 @@ const verifyOTP = async (req, res, next) => {
       });
     }
 
-    res.json({ 
-      success: true, 
-      token, 
+    res.json({
+      success: true,
+      token,
       user: {
         id: user._id,
         name: user.name,
@@ -244,7 +244,7 @@ const verifyOTP = async (req, res, next) => {
         isOnboarded: user.isOnboarded || false,
         avatar: user.avatar || ''
       },
-      message: 'Authentication Successful' 
+      message: 'Authentication Successful'
     });
   } catch (error) {
     next(error);
@@ -370,9 +370,9 @@ const facebookCallback = async (req, res, next) => {
     const { name, email } = userResponse.data;
 
     if (!email) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Facebook account must have a verified email." 
+      return res.status(400).json({
+        success: false,
+        message: "Facebook account must have a verified email."
       });
     }
 
@@ -384,7 +384,7 @@ const facebookCallback = async (req, res, next) => {
         name,
         email,
         role: 'creator',
-        isVerified: true, 
+        isVerified: true,
         password_hash: Math.random().toString(36).substring(7)
       });
 
@@ -401,10 +401,10 @@ const facebookCallback = async (req, res, next) => {
 
     // 5. Redirect to Frontend
     const getFrontendUrl = (req) => {
-        if (req.hostname === 'localhost' || req.hostname === '127.0.0.1') {
-            return 'http://localhost:5173';
-        }
-        return process.env.FRONTEND_URL || 'http://localhost:5173';
+      if (req.hostname === 'localhost' || req.hostname === '127.0.0.1') {
+        return 'http://localhost:5173';
+      }
+      return process.env.FRONTEND_URL || 'http://localhost:5173';
     };
     const redirectUrl = getFrontendUrl(req);
     res.redirect(`${redirectUrl}/dashboard-redirect?token=${token}`);

@@ -50,9 +50,22 @@ export default function Login() {
         setIsLoading(true);
         const toastId = toast.loading('Establishing Neural Link...');
         try {
-            await login(email, password);
-            toast.success('Neural Access Granted. Verify Identity.', { id: toastId });
-            navigate('/verify-otp');
+            const res = await login(email, password);
+            if (res && res.requiresVerification) {
+                toast.success('Neural Access Granted. Verify Identity.', { id: toastId });
+                navigate('/verify-otp');
+            } else {
+                toast.success('Neural Access Granted.', { id: toastId });
+                // Redirect immediately based on role returned
+                const role = res?.role || user?.role;
+                const roleRedirects: Record<string, string> = {
+                    creator: '/creator-dashboard',
+                    brand: '/brand-dashboard',
+                    admin: '/admin-dashboard'
+                };
+                const redirectPath = role ? (roleRedirects[role] || '/dashboard') : '/dashboard';
+                navigate(redirectPath);
+            }
         } catch (err: any) {
             console.error("Login authentication error:", err);
             let userFriendlyMsg = 'Neural Mismatch. Check Credentials.';
