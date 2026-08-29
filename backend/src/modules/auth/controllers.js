@@ -30,10 +30,21 @@ const register = async (req, res, next) => {
       { upsert: true, returnDocument: 'after' }
     );
 
-    sendOTPEmail(user.email, otp).catch(err => {
-        console.error(`[MAIL ERROR] Registration OTP email failed for ${user.email}:`, err.message);
-    });
-    console.log(`[AUTH] Registration OTP generated for ${user.email}`);
+    try {
+      await sendOTPEmail(user.email, otp);
+    } catch (err) {
+      console.error(`[MAIL ERROR] Registration OTP email failed for ${user.email}:`, err.message);
+      // Clean up database resources created for this user since registration failed to complete
+      await User.deleteOne({ _id: user._id });
+      await Analytics.deleteOne({ userId: user._id });
+      await Otp.deleteOne({ email: user.email });
+      return res.status(500).json({
+        success: false,
+        message: `We couldn't send the verification code: ${err.message || 'Email delivery failed'}. Please check your email and try again.`
+      });
+    }
+
+    console.log(`[AUTH] Registration OTP generated and sent for ${user.email}`);
 
     res.status(201).json({ 
         success: true, 
@@ -67,10 +78,16 @@ const login = async (req, res, next) => {
     );
 
     console.log(`[AUTH] Sending Email to ${user.email}...`);
-    // Attempt to send email, but don't let it hang the whole request
-    sendOTPEmail(user.email, otp).catch(err => {
-        console.error(`[MAIL ERROR] Failed to send to ${user.email}:`, err.message);
-    });
+    try {
+      await sendOTPEmail(user.email, otp);
+    } catch (err) {
+      console.error(`[MAIL ERROR] Failed to send login OTP to ${user.email}:`, err.message);
+      await Otp.deleteOne({ email: user.email });
+      return res.status(500).json({
+        success: false,
+        message: `We couldn't send the verification code: ${err.message || 'Email delivery failed'}. Please try again.`
+      });
+    }
 
     console.log(`[AUTH] Login success response for ${user.email}`);
 
