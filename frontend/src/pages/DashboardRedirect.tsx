@@ -10,6 +10,7 @@ export default function DashboardRedirect() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let active = true;
     const params = new URLSearchParams(window.location.search);
     const token = params.get("token");
 
@@ -25,6 +26,7 @@ export default function DashboardRedirect() {
 
         // 2. Fetch the full user profile from backend
         const response = await getProfile();
+        if (!active) return;
         const userData = response.data;
 
         // 3. Initialize auth context with token + user data
@@ -44,14 +46,21 @@ export default function DashboardRedirect() {
         };
         navigate(roleRedirects[userData.role] || "/dashboard", { replace: true });
       } catch (err) {
+        if (!active) return;
         console.error("[AUTH] OAuth session init failed:", err);
         localStorage.removeItem("token");
         setError("Authentication failed. Please try again.");
-        setTimeout(() => navigate("/login", { replace: true }), 2000);
+        setTimeout(() => {
+          navigate("/login", { replace: true });
+        }, 2000);
       }
     };
 
     initSession();
+
+    return () => {
+      active = false;
+    };
   }, [navigate, tokenLogin]);
 
   if (error) {

@@ -19,6 +19,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
         return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
+    if (isAuthenticated && !isVerified && location.pathname !== '/verify-otp') {
+        return <Navigate to="/verify-otp" replace />;
+    }
+
     if (allowedRoles && user && !allowedRoles.includes(user.role)) {
         // Redirect to their own dashboard if they try to access another role's area
         const roleRedirects: Record<string, string> = {

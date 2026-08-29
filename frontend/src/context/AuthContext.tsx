@@ -59,6 +59,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { addUser } = useAppContext();
 
     useEffect(() => {
+        let active = true;
         const storedUser = localStorage.getItem('creatorshq_user');
         const storedAuth = localStorage.getItem('creatorshq_auth');
         const token = localStorage.getItem('token');
@@ -66,6 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (token) {
             getProfile().then(response => {
+                if (!active) return;
                 const userData = response.data;
                 setUser(userData);
                 setIsAuthenticated(true);
@@ -78,6 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
                 setIsInitializing(false);
             }).catch(() => {
+                if (!active) return;
                 // Token is invalid/expired
                 setUser(null);
                 setIsAuthenticated(false);
@@ -123,11 +126,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         window.addEventListener('auth:expired', handleAuthExpired);
         
         return () => {
+            active = false;
             window.removeEventListener('auth:expired', handleAuthExpired);
         };
     }, []);
 
-    const login = async (email: string, password?: string) => {
+    const login = React.useCallback(async (email: string, password?: string) => {
         try {
             const response = await loginUser({ email, password: password || 'password123' });
             const userToLogin: User = { 
@@ -147,9 +151,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.error("Login failed:", error);
             throw error;
         }
-    };
+    }, []);
 
-    const adminLogin = async (email: string, password?: string) => {
+    const adminLogin = React.useCallback(async (email: string, password?: string) => {
         try {
             const response = await adminLoginService({ email, password });
             const adminUser: User = { 
@@ -169,9 +173,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.error("Admin Login failed:", error);
             throw error;
         }
-    };
+    }, []);
 
-    const signup = async (email: string, name: string, role: UserRole, password?: string) => {
+    const signup = React.useCallback(async (email: string, name: string, role: UserRole, password?: string) => {
         try {
             await registerUser({ email, name, role, password: password || 'password123' });
             
@@ -192,9 +196,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.error("Signup failed:", error);
             throw error;
         }
-    };
+    }, [addUser]);
 
-    const verifyOtp = async (inputOtp: string): Promise<boolean> => {
+    const verifyOtp = React.useCallback(async (inputOtp: string): Promise<boolean> => {
         if (!user?.email) return false;
         try {
             const data = await verifyOTPService(user.email, inputOtp);
@@ -217,9 +221,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.error("OTP Verification Error:", error);
             return false;
         }
-    };
+    }, [user]);
 
-    const tokenLogin = async (token: string, userData: User) => {
+    const tokenLogin = React.useCallback(async (token: string, userData: User) => {
         setUser(userData);
         setIsAuthenticated(true);
         setIsVerified(true);
@@ -227,9 +231,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('creatorshq_user', JSON.stringify(userData));
         localStorage.setItem('creatorshq_auth', 'true');
         localStorage.setItem('creatorshq_verified', 'true');
-    };
+    }, []);
 
-    const logout = () => {
+    const logout = React.useCallback(() => {
         setUser(null);
         setIsAuthenticated(false);
         setIsVerified(false);
@@ -238,9 +242,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem('creatorshq_auth');
         localStorage.removeItem('creatorshq_verified');
         localStorage.removeItem('role');
-    };
+    }, []);
 
-    const updateProfile = async (data: Partial<User>) => {
+    const updateProfile = React.useCallback(async (data: Partial<User>) => {
         if (!user) return;
         try {
             // Call the backend to persist name/avatar/onboarding changes
@@ -264,9 +268,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(updatedUser);
             localStorage.setItem('creatorshq_user', JSON.stringify(updatedUser));
         }
-    };
+    }, [user]);
 
-    const resendOtp = async (): Promise<boolean> => {
+    const resendOtp = React.useCallback(async (): Promise<boolean> => {
         if (!user?.email) {
             toast.error("Session identity missing.");
             return false;
@@ -281,7 +285,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             toast.error(error.message || "Failed to resend code");
         }
         return false;
-    };
+    }, [user]);
 
     return (
         <AuthContext.Provider value={{ user, isAuthenticated, isVerified, isInitializing, otp: null, login, adminLogin, signup, verifyOtp, tokenLogin, logout, updateProfile, resendOtp }}>

@@ -103,11 +103,11 @@ export default function VerifyOtp() {
 
         try {
             const success = await verifyOtp(otpString);
-            setIsLoading(false);
 
             if (success) {
                 toast.success('Neural Link Established');
             } else {
+                setIsLoading(false);
                 setError('Security mismatch. The access code provided is invalid or expired.');
                 toast.error('Verification Failed');
                 triggerShake();

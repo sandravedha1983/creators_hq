@@ -20,7 +20,15 @@ API.interceptors.request.use((config) => {
 API.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response?.status === 401) {
+        const config = error.config;
+        const isAuthEndpoint = config?.url?.includes('/api/auth/login') || 
+                               config?.url?.includes('/api/login') ||
+                               config?.url?.includes('/api/auth/register') ||
+                               config?.url?.includes('/api/signup') ||
+                               config?.url?.includes('/api/auth/admin-login') ||
+                               config?.url?.includes('/api/admin/login');
+
+        if (error.response?.status === 401 && !isAuthEndpoint) {
             localStorage.removeItem("token");
             window.dispatchEvent(new CustomEvent('auth:expired'));
         }

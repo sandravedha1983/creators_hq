@@ -61,7 +61,7 @@ const updateMyProfile = async (req, res, next) => {
     let profile = await CreatorProfile.findOneAndUpdate(
       { user_id: req.user.id },
       { $set: updates },
-      { new: true, upsert: true, runValidators: true }
+      { returnDocument: 'after', upsert: true, runValidators: true }
     );
 
     // Recompute growth score

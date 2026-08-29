@@ -1,6 +1,7 @@
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const dns = require("dns");
+const { Resend } = require("resend");
 
 // Force IPv4 lookup order to fix ENETUNREACH IPv6 errors on Render cloud hosting
 if (dns.setDefaultResultOrder) {
@@ -10,27 +11,34 @@ if (dns.setDefaultResultOrder) {
 // SMTP Transport Configuration
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp.gmail.com",
-  port: parseInt(process.env.SMTP_PORT || "465"),
-  secure: process.env.SMTP_PORT === "587" ? false : true,
+  port: parseInt(process.env.SMTP_PORT || "587", 10),
+  secure: String(process.env.SMTP_PORT) === "465" ? true : false,
   family: 4, // Force IPv4
   auth: {
     user: process.env.EMAIL_USER || process.env.SMTP_USER,
     pass: process.env.EMAIL_PASS || process.env.SMTP_PASS
   },
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 15000
+  connectionTimeout: 3000,
+  greetingTimeout: 3000,
+  socketTimeout: 3000
 });
 
-// Verify SMTP connection on startup
-transporter.verify()
-  .then(() => console.log("[MAIL] SMTP connection verified ✅"))
-  .catch((err) => console.error("[MAIL] SMTP connection failed ❌:", err.message));
+// Initialize Resend Client if configured
+const resendClient = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+
+// Verify SMTP connection on startup if not using Resend (non-blocking log)
+if (!process.env.RESEND_API_KEY) {
+  transporter.verify()
+    .then(() => console.log("[MAIL] SMTP connection verified ✅"))
+    .catch((err) => console.warn("[MAIL] SMTP connection check warning (will connect lazily):", err.message));
+} else {
+  console.log("[MAIL] Resend client initialized as primary mailer ✅");
+}
 
 /**
- * Send with retry — attempts once, retries once after 2s delay on failure.
+ * Send with retry — attempts once, retries once after 2s delay on failure by default.
  */
-const sendWithRetry = async (mailOptions, retries = 1) => {
+const sendWithRetry = async (mailOptions, retries = 0) => {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const info = await transporter.sendMail(mailOptions);
@@ -48,10 +56,39 @@ const sendWithRetry = async (mailOptions, retries = 1) => {
 };
 
 /**
+ * Unified send function — tries Resend first if available, falls back to SMTP.
+ */
+const sendMail = async (mailOptions) => {
+  if (resendClient) {
+    try {
+      console.log(`[MAIL] Sending email via Resend to ${mailOptions.to}...`);
+      const fromAddress = process.env.EMAIL_FROM || `"CreatorsHQ" <onboarding@resend.dev>`;
+      const response = await resendClient.emails.send({
+        from: fromAddress,
+        to: mailOptions.to,
+        subject: mailOptions.subject,
+        html: mailOptions.html
+      });
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+      const messageId = response.data?.id || "resend-id";
+      console.log(`[MAIL] Sent to ${mailOptions.to} via Resend | MessageId: ${messageId}`);
+      return { messageId };
+    } catch (err) {
+      console.error(`[MAIL ERROR] Resend failed for ${mailOptions.to}, falling back to Nodemailer SMTP:`, err.message);
+      return await sendWithRetry(mailOptions);
+    }
+  } else {
+    return await sendWithRetry(mailOptions);
+  }
+};
+
+/**
  * Sends an OTP to the specified email.
  */
 const sendOTP = async (email, otp) => {
-  await sendWithRetry({
+  await sendMail({
     from: `"CreatorsHQ" <${process.env.EMAIL_USER}>`,
     to: email,
     subject: "Your Verification Code — CreatorsHQ",
@@ -81,7 +118,7 @@ const sendOTP = async (email, otp) => {
  */
 const sendWelcomeEmail = async (email, name) => {
   try {
-    await sendWithRetry({
+    await sendMail({
       from: `"CreatorsHQ" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: "Welcome to CreatorsHQ 🚀",
@@ -118,7 +155,7 @@ const sendPasswordResetEmail = async (email, resetToken) => {
   const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
   const resetLink = `${FRONTEND_URL}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
 
-  await sendWithRetry({
+  await sendMail({
     from: `"CreatorsHQ" <${process.env.EMAIL_USER}>`,
     to: email,
     subject: "Reset Your Password — CreatorsHQ",

@@ -22,7 +22,7 @@ const updateMyBrandProfile = async (req, res, next) => {
     const profile = await BrandProfile.findOneAndUpdate(
       { user_id: req.user.id },
       { $set: updates },
-      { new: true, upsert: true, runValidators: true }
+      { returnDocument: 'after', upsert: true, runValidators: true }
     );
 
     res.json({ success: true, data: profile });

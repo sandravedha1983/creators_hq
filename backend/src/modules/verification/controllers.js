@@ -64,7 +64,7 @@ const updateStatus = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Invalid status' });
     }
 
-    const user = await User.findByIdAndUpdate(id, { verificationStatus: status }, { new: true });
+    const user = await User.findByIdAndUpdate(id, { verificationStatus: status }, { returnDocument: 'after' });
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }

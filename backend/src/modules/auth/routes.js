@@ -27,32 +27,54 @@ router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password', authController.resetPassword);
 
 // Google OAuth
-router.get("/google",
-  passport.authenticate("google", { scope: ["profile", "email"] })
-);
-
-router.get("/google/callback",
-  passport.authenticate("google", { session: false, failureRedirect: '/login?error=oauth_failed' }),
-  (req, res) => {
-    const token = req.user.token;
+router.get("/google", (req, res, next) => {
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
     const redirectUrl = getFrontendUrl(req);
-    res.redirect(`${redirectUrl}/dashboard-redirect?token=${token}`);
+    return res.redirect(`${redirectUrl}/login?error=google_not_configured`);
   }
-);
+  passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
+});
+
+router.get("/google/callback", (req, res, next) => {
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    const redirectUrl = getFrontendUrl(req);
+    return res.redirect(`${redirectUrl}/login?error=google_not_configured`);
+  }
+  const frontendUrl = getFrontendUrl(req);
+  passport.authenticate("google", { session: false, failureRedirect: `${frontendUrl}/login?error=oauth_failed` }, (err, user) => {
+    if (err || !user) {
+      console.error('[OAUTH] Google callback error:', err?.message || 'No user returned');
+      return res.redirect(`${frontendUrl}/login?error=oauth_failed`);
+    }
+    const token = user.token;
+    res.redirect(`${frontendUrl}/dashboard-redirect?token=${token}`);
+  })(req, res, next);
+});
 
 // LinkedIn OAuth
-router.get("/linkedin",
-  passport.authenticate("linkedin", { scope: ["openid", "profile", "email"], state: 'SOME_STATE' })
-);
-
-router.get("/linkedin/callback",
-  passport.authenticate("linkedin", { session: false, failureRedirect: '/login?error=oauth_failed' }),
-  (req, res) => {
-    const token = req.user.token;
+router.get("/linkedin", (req, res, next) => {
+  if (!process.env.LINKEDIN_CLIENT_ID || !process.env.LINKEDIN_CLIENT_SECRET) {
     const redirectUrl = getFrontendUrl(req);
-    res.redirect(`${redirectUrl}/dashboard-redirect?token=${token}`);
+    return res.redirect(`${redirectUrl}/login?error=linkedin_not_configured`);
   }
-);
+  passport.authenticate("linkedin", { scope: ["openid", "profile", "email"], state: 'SOME_STATE' })(req, res, next);
+});
+
+router.get("/linkedin/callback", (req, res, next) => {
+  if (!process.env.LINKEDIN_CLIENT_ID || !process.env.LINKEDIN_CLIENT_SECRET) {
+    const redirectUrl = getFrontendUrl(req);
+    return res.redirect(`${redirectUrl}/login?error=linkedin_not_configured`);
+  }
+  const frontendUrl = getFrontendUrl(req);
+  passport.authenticate("linkedin", { session: false, failureRedirect: `${frontendUrl}/login?error=oauth_failed` }, (err, user) => {
+    if (err || !user) {
+      console.error('[OAUTH] LinkedIn callback error:', err?.message || 'No user returned');
+      return res.redirect(`${frontendUrl}/login?error=oauth_failed`);
+    }
+    const token = user.token;
+    res.redirect(`${frontendUrl}/dashboard-redirect?token=${token}`);
+  })(req, res, next);
+});
 
 // Facebook OAuth
 router.get("/facebook", (req, res) => {
