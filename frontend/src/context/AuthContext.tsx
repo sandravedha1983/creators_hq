@@ -39,7 +39,7 @@ interface AuthContextType {
     isVerified: boolean;
     isInitializing: boolean;
     otp: string | null;
-    login: (email: string, password?: string) => Promise<void>;
+    login: (email: string, password?: string) => Promise<{ requiresVerification: boolean; role?: UserRole }>;
     adminLogin: (email: string, password?: string) => Promise<void>;
     signup: (email: string, name: string, role: UserRole, password?: string) => Promise<void>;
     verifyOtp: (otp: string) => Promise<boolean>;
@@ -134,19 +134,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const login = React.useCallback(async (email: string, password?: string) => {
         try {
             const response = await loginUser({ email, password: password || 'password123' });
-            const userToLogin: User = { 
-                email: response.user.email, 
-                name: response.user.name, 
-                role: response.user.role as UserRole,
-            };
+            
+            if (response.requiresVerification) {
+                const userToLogin: User = { 
+                    email: response.user.email, 
+                    name: response.user.name, 
+                    role: response.user.role as UserRole,
+                };
 
-            setUser(userToLogin);
-            setIsAuthenticated(true);
-            setIsVerified(false);
+                setUser(userToLogin);
+                setIsAuthenticated(true);
+                setIsVerified(false);
 
-            localStorage.setItem('creatorshq_user', JSON.stringify(userToLogin));
-            localStorage.setItem('creatorshq_auth', 'true');
-            localStorage.setItem('creatorshq_verified', 'false');
+                localStorage.setItem('creatorshq_user', JSON.stringify(userToLogin));
+                localStorage.setItem('creatorshq_auth', 'true');
+                localStorage.setItem('creatorshq_verified', 'false');
+                return { requiresVerification: true };
+            } else {
+                const userToLogin: User = { 
+                    email: response.user.email, 
+                    name: response.user.name, 
+                    role: response.user.role as UserRole,
+                    avatar: response.user.avatar || '',
+                    isOnboarded: response.user.isOnboarded || false
+                };
+
+                setUser(userToLogin);
+                setIsAuthenticated(true);
+                setIsVerified(true);
+
+                if (response.token) localStorage.setItem('token', response.token);
+                localStorage.setItem('creatorshq_user', JSON.stringify(userToLogin));
+                localStorage.setItem('creatorshq_auth', 'true');
+                localStorage.setItem('creatorshq_verified', 'true');
+                if (response.user.role) {
+                    localStorage.setItem('role', response.user.role);
+                }
+                return { requiresVerification: false, role: response.user.role };
+            }
         } catch (error) {
             console.error("Login failed:", error);
             throw error;
