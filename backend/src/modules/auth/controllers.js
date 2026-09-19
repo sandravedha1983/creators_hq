@@ -94,6 +94,7 @@ const login = async (req, res, next) => {
     res.json({
       success: true,
       message: 'Credentials verified. OTP sent.',
+      requiresVerification: true,
       user: {
         name: user.name,
         email: user.email,
