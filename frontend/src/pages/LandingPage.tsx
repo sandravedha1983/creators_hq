@@ -15,14 +15,7 @@ import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/utils/cn";
 
 // Assets
-import creatorImg from "@/assets/creator_visual.png";
-import brandImg from "@/assets/brand_visual.png";
 import heroVideo from "@/assets/istockphoto-2033341126-640_adpp_is.mp4";
-
-const IMAGES = {
-    CREATOR: creatorImg,
-    BRAND: brandImg
-};
 
 const Section = ({ children, className, id }: { children: React.ReactNode, className?: string, id?: string }) => (
     <section className={className} id={id}>
@@ -389,10 +382,36 @@ export function LandingPage() {
                     </motion.div>
 
                     <div className="relative group">
-                        <div className="absolute -inset-10 bg-secondary/10 blur-[80px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
-                        <Card className="p-4 border-white/[0.12] shadow-glass rounded-[4rem] group-hover:scale-[1.01] transition-transform duration-1000 relative z-10 overflow-hidden">
-                            <div className="absolute inset-0 bg-dark/20 backdrop-blur-[2px]" />
-                            <img src={IMAGES.BRAND || "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80"} alt="Growth Visual" className="rounded-[3.5rem] w-full border border-white/[0.08] relative z-10" />
+                        <div className="absolute -inset-10 bg-secondary/10 blur-[80px] rounded-full opacity-60 group-hover:opacity-100 transition-opacity duration-1000" />
+                        <Card className="p-8 sm:p-12 border-white/[0.08] bg-[#0A0F1D]/80 backdrop-blur-3xl rounded-[3.5rem] shadow-glass relative z-10 space-y-8 overflow-hidden group-hover:scale-[1.01] transition-transform duration-700">
+                            <div className="flex items-center justify-between border-b border-white/[0.05] pb-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-2xl bg-secondary/10 border border-secondary/20 flex items-center justify-center text-secondary font-bold shadow-glass">
+                                        <Zap className="w-6 h-6 animate-pulse" />
+                                    </div>
+                                    <div>
+                                        <div className="text-sm font-black text-white uppercase tracking-wider">Autonomous Engine</div>
+                                        <div className="text-[10px] text-heaven-muted font-bold uppercase tracking-widest opacity-60">Real-time Automation</div>
+                                    </div>
+                                </div>
+                                <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">Optimal</span>
+                            </div>
+
+                            <div className="space-y-4">
+                                {[
+                                    { label: "Content Queue Automated", value: "98.4%", status: "System Synced" },
+                                    { label: "Admin Overhead Saved", value: "32 hrs/wk", status: "Verified" },
+                                    { label: "Revenue Ledger Stream", value: "Instant", status: "Live Feed" }
+                                ].map((stat, i) => (
+                                    <div key={i} className="p-5 bg-white/[0.02] border border-white/[0.05] rounded-2xl flex items-center justify-between hover:bg-white/[0.04] transition-colors shadow-glass">
+                                        <span className="text-xs font-bold text-heaven-muted uppercase tracking-wider opacity-80">{stat.label}</span>
+                                        <div className="text-right">
+                                            <div className="text-sm font-black text-white tracking-tight">{stat.value}</div>
+                                            <div className="text-[8px] font-bold text-secondary uppercase tracking-widest">{stat.status}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </Card>
                     </div>
                 </div>
