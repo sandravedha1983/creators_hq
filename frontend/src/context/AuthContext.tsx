@@ -135,7 +135,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             const response = await loginUser({ email, password: password || 'password123' });
             
-            if (response.requiresVerification) {
+            const needsVerification = response.requiresVerification || !response.token;
+
+            if (needsVerification) {
                 const userToLogin: User = { 
                     email: response.user.email, 
                     name: response.user.name, 
@@ -149,7 +151,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 localStorage.setItem('creatorshq_user', JSON.stringify(userToLogin));
                 localStorage.setItem('creatorshq_auth', 'true');
                 localStorage.setItem('creatorshq_verified', 'false');
-                return { requiresVerification: true };
+                return { requiresVerification: true, role: response.user.role };
             } else {
                 const userToLogin: User = { 
                     email: response.user.email, 
