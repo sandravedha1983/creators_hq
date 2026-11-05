@@ -1,0 +1,100 @@
+{
+    "stats": [
+        {
+            "label": "Growth Score",
+            "value": "92",
+            "change": "+12%",
+            "trend": "up"
+        },
+        {
+            "label": "Total Followers",
+            "value": "124.8K",
+            "change": "+118.2%",
+            "trend": "up"
+        },
+        {
+            "label": "Engagement Rate",
+            "value": "8.4%",
+            "change": "+22.1%",
+            "trend": "up"
+        },
+        {
+            "label": "Monthly Earnings",
+            "value": "₹48,250",
+            "change": "+222.1%",
+            "trend": "up"
+        }
+    ],
+    "leads": [
+        {
+            "id": 1,
+            "name": "Alex Johnson",
+            "email": "alex@example.com",
+            "status": "Hot",
+            "value": "$2,500",
+            "date": "2024-03-20"
+        },
+        {
+            "id": 2,
+            "name": "Sarah Miller",
+            "email": "sarah@example.com",
+            "status": "Warm",
+            "value": "$1,200",
+            "date": "2024-03-19"
+        },
+        {
+            "id": 3,
+            "name": "David Chen",
+            "email": "david@example.com",
+            "status": "Cold",
+            "value": "$500",
+            "date": "2024-03-18"
+        },
+        {
+            "id": 4,
+            "name": "Emma Wilson",
+            "email": "emma@example.com",
+            "status": "Hot",
+            "value": "$3,800",
+            "date": "2024-03-17"
+        }
+    ],
+    "activities": [
+        {
+            "id": 1,
+            "user": "Alex Johnson",
+            "action": "Signed up via Instagram",
+            "time": "2 hours ago"
+        },
+        {
+            "id": 2,
+            "user": "Sarah Miller",
+            "action": "Applied for Brand Campaign",
+            "time": "5 hours ago"
+        },
+        {
+            "id": 3,
+            "user": "System",
+            "action": "New report generated",
+            "time": "Yesterday"
+        }
+    ],
+    "campaigns": [
+        {
+            "id": 1,
+            "brand": "Nike",
+            "title": "Summer Run Campaign",
+            "budget": "$5,000",
+            "status": "Open",
+            "image": "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=400"
+        },
+        {
+            "id": 2,
+            "brand": "Adobe",
+            "title": "Creative Creator Program",
+            "budget": "$2,500",
+            "status": "Applied",
+            "image": "https://images.unsplash.com/photo-1510519133417-2ad04b9c59bb?auto=format&fit=crop&q=80&w=400"
+        }
+    ]
+}
