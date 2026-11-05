@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Spinner } from '@/components/ui/Spinner';
 import API from '@/services/api';
 import { getAiUsage } from '@/services/profileService';
+import { MEMBERSHIP_UI_ENABLED } from '@/config/planVisibility';
 
 interface UsageData {
   used: number;
@@ -47,11 +48,17 @@ export default function AIStudio() {
     const handleGenerate = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!prompt.trim()) { toast.error('Please enter a concept for the AI to process.'); return; }
-        if (usage?.limitReached) { toast.error('Monthly limit reached. Upgrade to Pro for unlimited access.'); return; }
+        if (usage?.limitReached) {
+            toast.error(MEMBERSHIP_UI_ENABLED
+                ? 'Monthly limit reached. Upgrade to Pro for unlimited access.'
+                : 'Monthly generation limit reached.');
+            return;
+        }
 
         setIsLoading(true);
         try {
-            const res = await API.post('/api/ai/content', { prompt, type });
+            const apiType = type === 'ideas' ? 'idea' : type;
+            const res = await API.post('/api/ai/content', { prompt, type: apiType });
             if (res.data.success) {
                 setResult(res.data.data);
                 toast.success('Intelligence generated successfully.');
@@ -62,7 +69,9 @@ export default function AIStudio() {
         } catch (err: any) {
             if (err.response?.status === 402 || err.response?.data?.limitReached) {
                 setUsage(prev => prev ? { ...prev, limitReached: true } : prev);
-                toast.error('Monthly limit reached. Upgrade to Pro for unlimited access.');
+                toast.error(MEMBERSHIP_UI_ENABLED
+                    ? 'Monthly limit reached. Upgrade to Pro for unlimited access.'
+                    : 'Monthly generation limit reached.');
             } else {
                 toast.error('Failed to generate content.');
             }
@@ -111,7 +120,9 @@ export default function AIStudio() {
                             <div className="flex items-center gap-4">
                                 <Crown className="w-6 h-6 text-yellow-400" />
                                 <div>
-                                    <p className="text-[10px] font-bold text-heaven-muted uppercase tracking-widest opacity-50">Pro Plan</p>
+                                    <p className="text-[10px] font-bold text-heaven-muted uppercase tracking-widest opacity-50">
+                                        {MEMBERSHIP_UI_ENABLED ? 'Pro Plan' : 'Generation Access'}
+                                    </p>
                                     <p className="text-lg font-bold text-heaven-text">Unlimited</p>
                                 </div>
                             </div>
@@ -149,15 +160,19 @@ export default function AIStudio() {
                                     <Lock className="w-7 h-7" />
                                 </div>
                                 <div>
-                                    <h3 className="text-xl font-bold text-heaven-text uppercase tracking-tight">Free Limit Reached</h3>
+                                    <h3 className="text-xl font-bold text-heaven-text uppercase tracking-tight">Monthly Limit Reached</h3>
                                     <p className="text-[10px] font-bold text-heaven-muted uppercase tracking-widest opacity-50 mt-1">
-                                        You've used all 5 free generations this month. Upgrade to Pro for unlimited access.
+                                        {MEMBERSHIP_UI_ENABLED
+                                            ? "You've used all 5 free generations this month. Upgrade to Pro for unlimited access."
+                                            : "You've used all 5 generations available this month."}
                                     </p>
                                 </div>
                             </div>
-                            <Button variant="primary" className="h-14 px-10 rounded-2xl font-bold uppercase tracking-widest shadow-soft-glow whitespace-nowrap">
-                                <Crown className="w-5 h-5 mr-3" /> Upgrade to Pro
-                            </Button>
+                            {MEMBERSHIP_UI_ENABLED && (
+                                <Button variant="primary" className="h-14 px-10 rounded-2xl font-bold uppercase tracking-widest shadow-soft-glow whitespace-nowrap">
+                                    <Crown className="w-5 h-5 mr-3" /> Upgrade to Pro
+                                </Button>
+                            )}
                         </Card>
                     </motion.div>
                 )}

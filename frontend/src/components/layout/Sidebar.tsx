@@ -32,6 +32,7 @@ import { motion } from "framer-motion"
 import { useAuth, UserRole } from "@/context/AuthContext"
 import { useAppContext } from "@/context/AppContext"
 import { cn } from "@/utils/cn"
+import { MEMBERSHIP_UI_ENABLED } from "@/config/planVisibility"
 
 const menuConfigs: Record<UserRole, { icon: any, label: string, path: string }[]> = {
     creator: [
@@ -43,7 +44,7 @@ const menuConfigs: Record<UserRole, { icon: any, label: string, path: string }[]
         { icon: Bell, label: "Activity", path: "/notifications" },
         { icon: BarChart3, label: "Analytics", path: "/analytics" },
         { icon: Zap, label: "Automation", path: "/automation" },
-        { icon: CreditCard, label: "Billing", path: "/billing" },
+        ...(MEMBERSHIP_UI_ENABLED ? [{ icon: CreditCard, label: "Billing", path: "/billing" }] : []),
         { icon: Sparkles, label: "AI Studio", path: "/ai-studio" },
         { icon: MessageSquare, label: "Messages", path: "/messages" },
     ],
@@ -58,8 +59,9 @@ const menuConfigs: Record<UserRole, { icon: any, label: string, path: string }[]
         { icon: MessageSquare, label: "Messages", path: "/messages" },
     ],
     admin: [
-        { icon: LayoutDashboard, label: "Admin View", path: "/admin-dashboard" },
+        { icon: LayoutDashboard, label: "Admin View", path: "/admin/dashboard" },
         { icon: Database, label: "Users", path: "/users" },
+        { icon: UserPlus, label: "Creator Waitlist", path: "/admin/waitlist" },
         { icon: FileSearch, label: "Reports", path: "/reports" },
         { icon: Bell, label: "Activity", path: "/notifications" },
         { icon: MessageSquare, label: "Messages", path: "/messages" },

@@ -72,6 +72,13 @@ export default function AdminDashboard() {
                         Sync Data
                     </Button>
                     <Button
+                        onClick={() => navigate('/admin/waitlist')}
+                        variant="secondary"
+                        className="h-16 px-10 rounded-[2.25rem] font-bold text-[10px] uppercase tracking-[0.3em] bg-white/[0.04] border-white/10 text-heaven-muted hover:text-heaven-text shadow-glass"
+                    >
+                        Creator Waitlist
+                    </Button>
+                    <Button
                         onClick={() => navigate('/reports')}
                         variant="secondary"
                         className="h-16 px-10 rounded-[2.25rem] font-bold text-[10px] uppercase tracking-[0.3em] bg-white/[0.04] border-white/10 text-heaven-muted hover:text-heaven-text shadow-glass"

@@ -5,9 +5,11 @@
   "scripts": {
     "start": "node src/app.js",
     "build": "npm install",
-    "dev": "nodemon src/app.js"
+    "dev": "nodemon src/app.js",
+    "test": "jest --runInBand --testPathPatterns=collaborations.test"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.3",
     "axios": "^1.15.2",
     "bcrypt": "^6.0.0",
     "bullmq": "^4.0.0",
@@ -31,6 +33,7 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "jest": "^30.5.2",
     "nodemon": "^3.1.14"
   }
 }

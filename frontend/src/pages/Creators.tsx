@@ -2,22 +2,18 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Search, Users, Star, ArrowUpRight, ShieldCheck, MapPin, Target, Send, RefreshCw } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Search, Users, Target, Send, RefreshCw } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { cn } from '@/utils/cn';
 import { toast } from 'react-hot-toast';
 import { getPublicCreators } from '@/services/profileService';
+import API from '@/services/api';
 
 interface PublicCreator {
-    _id: string;
-    user_id: { _id: string; name: string; email: string; avatar?: string; verificationStatus?: string; socials?: any };
-    username?: string;
+    user_id: string;
+    username: string;
+    avatar: string;
     niche: string;
-    location: string;
-    followers: number;
-    growthScore: number;
-    bio: string;
-    socialLinks?: Record<string, string>;
 }
 
 const NICHES = ['All', 'Technology', 'Lifestyle', 'Fashion', 'Health', 'Food', 'Travel', 'Gaming', 'Finance', 'Education'];
@@ -51,23 +47,26 @@ export default function Creators() {
 
     useEffect(() => { load(); }, [load]);
 
-    // Debounce search
+    // Reset pagination on filter change
     useEffect(() => {
         setPage(1);
     }, [searchQuery, selectedNiche]);
 
-    const handleSendRequest = (id: string, name: string) => {
-        if (requested.includes(id)) return;
-        toast.promise(
-            new Promise(resolve => setTimeout(() => { setRequested(prev => [...prev, id]); resolve(true); }, 800)),
-            { loading: `Sending proposal to ${name}...`, success: `Proposal sent to ${name}`, error: 'Failed to send.' }
-        );
-    };
-
-    const formatFollowers = (n: number) => {
-        if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-        if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
-        return n.toString();
+    const handleSendRequest = async (creatorRecordId: string, receiverUserId: string, name: string) => {
+        if (requested.includes(creatorRecordId)) return;
+        const toastId = toast.loading(`Sending proposal to ${name}...`);
+        try {
+            await API.post('/api/collaborations/request', {
+                receiver_id: receiverUserId,
+                message: `Hi ${name}! We would love to collaborate with you on our upcoming brand campaigns.`
+            });
+            setRequested(prev => [...prev, creatorRecordId]);
+            toast.success(`Proposal sent to ${name}! ✅`, { id: toastId });
+        } catch (err: any) {
+            console.error('[COLLABORATION ERROR]', err);
+            const msg = err.response?.data?.message || err.message || 'Failed to dispatch proposal.';
+            toast.error(msg, { id: toastId });
+        }
     };
 
     return (
@@ -93,7 +92,7 @@ export default function Creators() {
                     <Input
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
-                        placeholder="Search by name, handle or niche..."
+                        placeholder="Search by handle or niche..."
                         className="border-0 bg-transparent shadow-none h-14 px-0 focus-visible:ring-0 flex-1 text-heaven-text font-bold text-[11px] placeholder:text-heaven-muted/10"
                     />
                 </Card>
@@ -136,14 +135,13 @@ export default function Creators() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
                     {creators.map((creator, i) => {
-                        const user = creator.user_id;
-                        const displayName = user?.name || creator.username || 'Creator';
-                        const isVerified = user?.verificationStatus === 'verified';
-                        const hasRequested = requested.includes(creator._id);
+                        const creatorId = creator.user_id;
+                        const displayName = creator.username || 'Creator';
+                        const hasRequested = requested.includes(creatorId);
 
                         return (
                             <motion.div
-                                key={creator._id}
+                                key={creatorId}
                                 initial={{ opacity: 0, y: 15 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: i * 0.07, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
@@ -154,26 +152,15 @@ export default function Creators() {
                                 )}>
                                     <div className="absolute top-0 right-0 w-36 h-36 bg-primary/5 rounded-full blur-[60px] -mr-16 -mt-16 group-hover:bg-primary/10 transition-colors duration-1000" />
 
-                                    {/* Avatar + verified badge */}
+                                    {/* Public avatar */}
                                     <div className="flex items-center justify-between relative z-10">
                                         <div className="w-20 h-20 rounded-[2rem] overflow-hidden border border-primary/20 bg-primary/10 flex items-center justify-center shadow-glass transition-transform group-hover:rotate-3">
-                                            {user?.avatar ? (
-                                                <img src={user.avatar} alt={displayName} className="w-full h-full object-cover" />
+                                            {creator.avatar ? (
+                                                <img src={creator.avatar} alt={displayName} className="w-full h-full object-cover" />
                                             ) : (
-                                                <span className="text-3xl font-bold text-primary">{displayName[0].toUpperCase()}</span>
+                                                <span className="text-3xl font-bold text-primary">{displayName[0]?.toUpperCase() || 'C'}</span>
                                             )}
                                         </div>
-                                        {isVerified && (
-                                            <div className="p-3 bg-secondary/10 border border-secondary/20 text-secondary rounded-xl shadow-glass">
-                                                <ShieldCheck className="w-6 h-6" />
-                                            </div>
-                                        )}
-                                        {creator.growthScore > 0 && (
-                                            <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 rounded-full">
-                                                <Star className="w-3 h-3 text-primary" />
-                                                <span className="text-[10px] font-bold text-primary">{creator.growthScore}</span>
-                                            </div>
-                                        )}
                                     </div>
 
                                     {/* Name & niche */}
@@ -184,32 +171,11 @@ export default function Creators() {
                                                 <Target className="w-3 h-3 text-primary" /> {creator.niche}
                                             </p>
                                         )}
-                                        {creator.bio && (
-                                            <p className="text-xs text-heaven-muted/50 leading-relaxed line-clamp-2">{creator.bio}</p>
-                                        )}
-                                    </div>
-
-                                    {/* Stats */}
-                                    <div className="grid grid-cols-2 gap-6 py-8 border-y border-white/[0.05] relative z-10">
-                                        <div className="space-y-2">
-                                            <p className="text-[10px] font-bold text-heaven-muted uppercase tracking-widest opacity-40">Audience</p>
-                                            <p className="text-xl font-bold text-heaven-text tracking-tighter">
-                                                {creator.followers > 0 ? formatFollowers(creator.followers) : '—'}
-                                            </p>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <p className="text-[10px] font-bold text-heaven-muted uppercase tracking-widest opacity-40">Location</p>
-                                            <p className="text-sm font-bold text-heaven-text truncate flex items-center gap-2">
-                                                {creator.location ? (
-                                                    <><MapPin className="w-3 h-3 text-secondary opacity-60 shrink-0" />{creator.location.split(',')[0]}</>
-                                                ) : '—'}
-                                            </p>
-                                        </div>
                                     </div>
 
                                     {/* CTA */}
                                     <Button
-                                        onClick={() => handleSendRequest(creator._id, displayName)}
+                                        onClick={() => handleSendRequest(creatorId, creatorId, displayName)}
                                         disabled={hasRequested}
                                         variant={hasRequested ? 'secondary' : 'primary'}
                                         className={cn(
@@ -237,5 +203,3 @@ export default function Creators() {
         </div>
     );
 }
-
-

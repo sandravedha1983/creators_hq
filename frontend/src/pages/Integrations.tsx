@@ -256,7 +256,7 @@ export default function Integrations() {
                             initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
                             className="w-full max-w-xl bg-[#050810]/95 border border-white/[0.08] rounded-[3rem] p-12 shadow-glass relative z-10 overflow-hidden"
                         >
-                            <div className="absolute top-0 inset-x-0 h-1 bg-button-gradient shadow-soft-glow opacity-50" />
+                            <div className="absolute top-0 inset-x-0 h-1 bg-primary opacity-50" />
                             
                             <div className="flex items-center justify-between mb-10">
                                 <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20 shadow-glass">

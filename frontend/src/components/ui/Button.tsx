@@ -11,12 +11,12 @@ export interface ButtonProps
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ({ className, variant = 'primary', size = 'md', isLoading, children, ...props }, ref) => {
         const variants = {
-            primary: 'bg-button-gradient text-white shadow-soft-glow hover:brightness-110 active:scale-95 transition-all duration-500',
-            secondary: 'bg-primary-light text-white shadow-soft-glow hover:brightness-110 active:scale-95 transition-all duration-500',
+            primary: 'bg-primary text-white hover:bg-accent active:scale-95 transition-all duration-300',
+            secondary: 'bg-primary-light text-white hover:bg-primary active:scale-95 transition-all duration-300',
             outline: 'border border-white/10 bg-white/[0.02] backdrop-blur-sm hover:border-primary/20 hover:bg-white/[0.04] text-heaven-text active:scale-95 transition-all duration-500',
             ghost: 'bg-transparent hover:bg-white/[0.05] text-heaven-muted hover:text-heaven-text active:scale-95 transition-all duration-300',
             danger: 'bg-rose-500/10 text-rose-400 border border-rose-500/10 hover:bg-rose-500/20 active:scale-95 transition-all duration-300',
-            neon: 'bg-button-gradient text-white shadow-soft-glow hover:brightness-110 active:scale-95 transition-all duration-500 border-0',
+            neon: 'bg-primary text-white hover:bg-accent active:scale-95 transition-all duration-300 border-0',
             glass: 'bg-white/[0.04] backdrop-blur-md border border-white/[0.08] text-heaven-text hover:bg-white/[0.08] active:scale-95 transition-all duration-500'
         }
 

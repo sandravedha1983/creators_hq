@@ -45,18 +45,9 @@ const smtpTransporter = nodemailer.createTransport({
  * The caller must handle the error and return a failure response.
  */
 const sendOTP = async (email, otp) => {
-  if (!resend || !RESEND_FROM) {
-    throw new Error("Email service is not fully configured. Both RESEND_API_KEY and RESEND_FROM_EMAIL are required.");
-  }
-
   const maskedEmail = email.replace(/(.{2}).+(@.+)/, "$1***$2");
-  console.log(`[MAIL] Sending OTP via Resend to ${maskedEmail}...`);
-
-  const { data, error } = await resend.emails.send({
-    from: RESEND_FROM,
-    to: email,
-    subject: "Your CreatorsHQ Verification Code",
-    html: `
+  
+  const html = `
       <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 480px; margin: 0 auto; background: #0A0F1D; border-radius: 24px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08);">
         <div style="background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 32px; text-align: center;">
           <h1 style="color: #fff; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">CreatorsHQ</h1>
@@ -73,16 +64,51 @@ const sendOTP = async (email, otp) => {
           <p style="color: #4B5563; font-size: 10px; margin: 0; text-transform: uppercase; letter-spacing: 1px;">© CreatorsHQ — Secure Access</p>
         </div>
       </div>
-    `,
-  });
+  `;
 
-  if (error) {
-    console.error(`[MAIL ERROR] Resend rejected OTP email to ${maskedEmail}:`, error.message || JSON.stringify(error));
-    throw new Error(`Email delivery failed: ${error.message || "Resend API error"}`);
+  // Try Resend first
+  if (resend && RESEND_FROM && !RESEND_API_KEY.includes('your_resend_api_key')) {
+    try {
+      console.log(`[MAIL] Sending OTP via Resend to ${maskedEmail}...`);
+      const { data, error } = await resend.emails.send({
+        from: RESEND_FROM,
+        to: email,
+        subject: "Your CreatorsHQ Verification Code",
+        html,
+      });
+      if (error) throw new Error(error.message);
+      console.log(`[MAIL] OTP email sent successfully ✅ | ID: ${data?.id}`);
+      return;
+    } catch (err) {
+      console.warn(`[MAIL WARN] Resend OTP failed (${err.message}). Trying SMTP fallback...`);
+    }
   }
 
-  console.log(`[MAIL] OTP email sent successfully ✅`);
-  console.log(`[MAIL] Resend email ID: ${data?.id}`);
+  // SMTP fallback
+  try {
+    console.log(`[MAIL] Sending OTP via SMTP to ${maskedEmail}...`);
+    await smtpTransporter.sendMail({
+      from: `"CreatorsHQ" <${process.env.EMAIL_USER || process.env.SMTP_USER}>`,
+      to: email,
+      subject: "Your CreatorsHQ Verification Code",
+      html,
+    });
+    console.log(`[MAIL] OTP email sent via SMTP successfully ✅`);
+    return;
+  } catch (err) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(`[MAIL WARN] SMTP failed (${err.message}). Falling back to Dev Console OTP.`);
+      console.log(`\n==================================================`);
+      console.log(`[DEV OTP FALLBACK NOTIFICATION]`);
+      console.log(`Recipient: ${email}`);
+      console.log(`Verification Code: ${otp}`);
+      console.log(`Expires in: 5 minutes`);
+      console.log(`==================================================\n`);
+      return;
+    }
+    console.error(`[MAIL ERROR] OTP email delivery failed to ${maskedEmail}:`, err.message);
+    throw new Error(`Email delivery failed: ${err.message}`);
+  }
 };
 
 // ─── Welcome Email (best-effort — tries Resend first, SMTP fallback) ─────────

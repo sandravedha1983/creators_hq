@@ -327,11 +327,11 @@ export default function Marketplace() {
                                         {campaign.image ? (
                                             <img src={campaign.image} alt={campaign.title} className="w-full h-full object-cover transition-all duration-1000 group-hover:scale-110" />
                                         ) : (
-                                            <div className="w-full h-full bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center">
+                                            <div className="w-full h-full bg-dark-navy flex items-center justify-center">
                                                 <Megaphone className="w-16 h-16 text-primary/20" />
                                             </div>
                                         )}
-                                        <div className="absolute inset-0 bg-gradient-to-t from-dark/90 via-dark/20 to-transparent" />
+                                        <div className="absolute inset-0 bg-dark/50" />
                                         <div className="absolute top-5 left-5">
                                             <span className={cn('px-4 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest border backdrop-blur-md',
                                                 campaign.status === 'open' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
@@ -384,5 +384,4 @@ export default function Marketplace() {
         </div>
     );
 }
-
 

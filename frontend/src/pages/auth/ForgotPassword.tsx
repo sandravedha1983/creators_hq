@@ -29,10 +29,8 @@ export default function ForgotPassword() {
 
     return (
         <div className="min-h-screen bg-dark flex items-center justify-center p-6 relative overflow-hidden font-sans">
-            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-[140px] animate-pulse pointer-events-none" />
-            
             <Card className="w-full max-w-lg p-6 sm:p-16 bg-[#050810]/90 border-white/[0.08] backdrop-blur-3xl rounded-[2.5rem] sm:rounded-[4rem] shadow-glass relative z-10 overflow-hidden">
-                <div className="absolute top-0 inset-x-0 h-1.5 bg-button-gradient shadow-soft-glow" />
+                <div className="absolute top-0 inset-x-0 h-1.5 bg-primary" />
 
                 <div className="flex flex-col items-center mb-12 sm:mb-16 text-center">
                     <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-[1.75rem] sm:rounded-[2rem] flex items-center justify-center mb-8 sm:mb-10 shadow-glass bg-primary/10 border border-primary/20">

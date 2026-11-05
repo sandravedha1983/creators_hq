@@ -1,6 +1,7 @@
 const User = require('../auth/models');
 const { extractUsername, profileUrl, fetchHtml } = require('../../utils/social');
 const cheerio = require('cheerio');
+const axios = require('axios');
 
 /**
  * POST /api/integrations/link

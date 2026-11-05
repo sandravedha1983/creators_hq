@@ -183,7 +183,7 @@ export default function BrandDashboard() {
                                 <div className="max-w-md space-y-6">
                                     <h3 className="text-3xl font-bold text-heaven-text tracking-tight uppercase leading-none">Global Talent Discovery</h3>
                                     <p className="text-heaven-muted text-[10px] font-bold uppercase tracking-[0.5em] leading-loose opacity-40">
-                                        Access elite talent across every vertical. Use our advanced discovery engine to identify ambassadors that resonate with your brand identity.
+                                        Access top talent across every vertical. Use our advanced discovery engine to identify ambassadors that resonate with your brand identity.
                                     </p>
                                 </div>
                                 <Button

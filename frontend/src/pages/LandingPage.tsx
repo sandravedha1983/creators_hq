@@ -13,10 +13,9 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/utils/cn";
+import { filterVisiblePlans, MEMBERSHIP_UI_ENABLED } from '@/config/planVisibility';
 
 // Assets
-import heroVideo from "@/assets/istockphoto-2033341126-640_adpp_is.mp4";
-
 const Section = ({ children, className, id }: { children: React.ReactNode, className?: string, id?: string }) => (
     <section className={className} id={id}>
         <div className="max-w-7xl mx-auto px-8 md:px-12">
@@ -27,11 +26,7 @@ const Section = ({ children, className, id }: { children: React.ReactNode, class
 
 function PlatformPreview({ activeTab }: { activeTab: 'creator' | 'brand' }) {
     return (
-        <div className="relative w-full h-full min-h-[480px] bg-gradient-to-br from-[#0A0F1D]/80 to-[#050810]/95 backdrop-blur-3xl border border-white/[0.08] rounded-[3.5rem] p-6 sm:p-10 shadow-glass overflow-hidden flex flex-col justify-between group/preview select-none">
-            {/* Soft decorative light */}
-            <div className="absolute -top-12 -left-12 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none group-hover/preview:bg-primary/20 transition-all duration-1000" />
-            <div className="absolute -bottom-12 -right-12 w-64 h-64 bg-secondary/10 rounded-full blur-3xl pointer-events-none group-hover/preview:bg-secondary/20 transition-all duration-1000" />
-            
+        <div className="relative w-full h-full min-h-[480px] bg-[#0A0F1D] border border-white/[0.08] rounded-[3.5rem] p-6 sm:p-10 shadow-glass overflow-hidden flex flex-col justify-between group/preview select-none">
             {/* Header bar of the dashboard preview */}
             <div className="flex items-center justify-between border-b border-white/[0.05] pb-6">
                 <div className="flex items-center gap-3">
@@ -70,27 +65,13 @@ function PlatformPreview({ activeTab }: { activeTab: 'creator' | 'brand' }) {
                                 <span className="text-xs font-black text-emerald-400">+142%</span>
                             </div>
                             <svg className="w-full h-24 overflow-visible" viewBox="0 0 300 100">
-                                <defs>
-                                    <linearGradient id="gradient-glow" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor="rgb(99, 102, 241)" stopOpacity="0.2" />
-                                        <stop offset="100%" stopColor="rgb(99, 102, 241)" stopOpacity="0.0" />
-                                    </linearGradient>
-                                </defs>
                                 <path 
                                     d="M 0 90 Q 50 80 80 60 T 150 50 T 220 20 T 300 10" 
                                     fill="none" 
-                                    stroke="url(#gradient-glow)" 
-                                    strokeWidth="20"
-                                    strokeLinecap="round"
-                                />
-                                <path 
-                                    d="M 0 90 Q 50 80 80 60 T 150 50 T 220 20 T 300 10" 
-                                    fill="none" 
-                                    stroke="rgb(99, 102, 241)" 
+                                    stroke="#A78BFA" 
                                     strokeWidth="3.5"
                                     strokeLinecap="round"
                                 />
-                                <circle cx="300" cy="10" r="5" fill="rgb(99, 102, 241)" className="animate-ping" />
                                 <circle cx="300" cy="10" r="3.5" fill="#fff" />
                             </svg>
                         </div>
@@ -139,15 +120,15 @@ function PlatformPreview({ activeTab }: { activeTab: 'creator' | 'brand' }) {
 
 export function LandingPage() {
     const [activeTab, setActiveTab] = React.useState<'creator' | 'brand'>('creator');
+    const pricingPlans = filterVisiblePlans([
+        { name: 'Entry', price: '0', features: ['Insight Dashboard', 'AI Generation (Basic)', 'Unified Library'] },
+        { name: 'Prime', price: '999', features: ['Everything in Entry', 'Advanced Analytics', 'AI Unlimited', 'Marketplace Access'], popular: true },
+        { name: 'Growth', price: '2999', features: ['Everything in Prime', 'Global Directory', 'Agency Tools', 'Priority Support'] },
+        { name: 'Enterprise', price: 'Custom', features: ['Dedicated Account', 'White-label Hub', 'Full API Access', 'Managed Campaigns'] },
+    ]);
 
     return (
         <div className="min-h-screen bg-dark text-heaven-text overflow-hidden font-sans selection:bg-primary/30">
-            {/* Background Effects: Heavenly Glows */}
-            <div className="fixed inset-0 pointer-events-none z-0">
-                <div className="absolute top-[-15%] left-[-10%] w-[60%] h-[60%] bg-primary/10 blur-[140px] rounded-full animate-pulse opacity-40" />
-                <div className="absolute bottom-[-15%] right-[-10%] w-[60%] h-[60%] bg-secondary/10 blur-[140px] rounded-full animate-pulse opacity-40" style={{ animationDelay: '3s' }} />
-                <div className="absolute top-[20%] left-[30%] w-[30%] h-[30%] bg-accent/5 blur-[100px] rounded-full opacity-30" />
-            </div>
 
             {/* Navigation: Glassmorphic Floating Header */}
             <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/[0.05] bg-dark/40 backdrop-blur-2xl">
@@ -158,7 +139,7 @@ export function LandingPage() {
                     </div>
 
                     <div className="hidden lg:flex items-center gap-12 text-[10px] font-bold text-heaven-muted uppercase tracking-[0.3em]">
-                        {['Features', 'Creators', 'Brands', 'About', 'Pricing'].map(link => (
+                        {['Features', 'Creators', 'Brands', 'About', ...(MEMBERSHIP_UI_ENABLED ? ['Pricing'] : [])].map(link => (
                             <a key={link} href={`#${link.toLowerCase()}`} className="hover:text-primary transition-all duration-300 relative group py-2">
                                 {link}
                                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary transition-all duration-500 group-hover:w-full rounded-full shadow-soft-glow" />
@@ -168,27 +149,18 @@ export function LandingPage() {
 
                     <div className="flex items-center gap-6">
                         <Link to="/login" className="text-[10px] font-bold text-heaven-muted hover:text-heaven-text uppercase tracking-[0.3em] transition-all">Log in</Link>
-                        <Link to="/signup">
-                            <Button variant="primary" className="h-12 px-8 rounded-xl font-bold text-[10px] uppercase tracking-[0.3em] shadow-soft-glow hidden sm:flex">Entry</Button>
-                        </Link>
+                        <Link to="/waitlist" className="text-[10px] font-bold text-primary hover:text-heaven-text uppercase tracking-[0.3em] transition-all">Waitlist</Link>
+                        {MEMBERSHIP_UI_ENABLED && (
+                            <Link to="/signup">
+                                <Button variant="primary" className="h-12 px-8 rounded-xl font-bold text-[10px] uppercase tracking-[0.3em] shadow-soft-glow hidden sm:flex">Entry</Button>
+                            </Link>
+                        )}
                     </div>
                 </div>
             </nav>
 
             {/* 🔥 HERO SECTION: Elegant & Commanding */}
             <section className="relative pt-56 pb-40 z-10 overflow-hidden" id="hero">
-                {/* Background Video */}
-                <video
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    className="absolute inset-0 w-full h-full object-cover z-0 opacity-40"
-                >
-                    <source src={heroVideo} type="video/mp4" />
-                </video>
-                <div className="absolute inset-0 bg-gradient-to-b from-dark/90 via-transparent to-dark z-0 opacity-40" />
-
                 <div className="max-w-7xl mx-auto px-8 md:px-12 relative z-10">
                     <div className="grid lg:grid-cols-2 gap-24 items-center">
                         <motion.div
@@ -226,20 +198,20 @@ export function LandingPage() {
                                 {activeTab === 'creator' ? (
                                     <>
                                         Your Creative <br className="hidden sm:block" />
-                                        <span className="text-transparent bg-clip-text bg-button-gradient">Universe</span> <br className="hidden sm:block" />
+                                        <span className="text-primary">Universe</span> <br className="hidden sm:block" />
                                         Unified.
                                     </>
                                 ) : (
                                     <>
-                                        Elite Brand <br className="hidden sm:block" />
-                                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-secondary to-accent">Impact</span> <br className="hidden sm:block" />
+                                        Brand Impact <br className="hidden sm:block" />
+                                        <span className="text-accent">Impact</span> <br className="hidden sm:block" />
                                         Realized.
                                     </>
                                 )}
                             </h1>
                             <p className="text-lg md:text-2xl text-heaven-muted opacity-40 leading-relaxed max-w-2xl font-medium italic tracking-tight mb-14 px-4 sm:px-0">
                                 {activeTab === 'creator' 
-                                    ? "A high-performance operating system designed for the next generation of creative elite."
+                                    ? "A high-performance operating system designed for the next generation of creative leaders."
                                     : "Connect with world-class talent and execute high-performance campaigns with precision analytics."}
                             </p>
                             <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 justify-center lg:justify-start">
@@ -271,8 +243,6 @@ export function LandingPage() {
 
                             {/* Floating Interaction Nodes */}
                             <motion.div
-                                animate={{ y: [0, 30, 0], x: [0, 10, 0] }}
-                                transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
                                 className="absolute -top-12 -right-12 z-20 group-hover:scale-105 transition-transform duration-700"
                             >
                                 <Card className="py-6 px-8 border-primary/20 bg-dark/60 backdrop-blur-3xl rounded-[2.5rem] shadow-soft-glow border">
@@ -289,8 +259,6 @@ export function LandingPage() {
                             </motion.div>
 
                             <motion.div
-                                animate={{ y: [0, -30, 0], x: [0, -10, 0] }}
-                                transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
                                 className="absolute -bottom-10 -left-12 z-20 group-hover:scale-105 transition-transform duration-700"
                             >
                                 <Card className="py-6 px-8 border-secondary/20 bg-dark/60 backdrop-blur-3xl rounded-[2.5rem] shadow-glass border">
@@ -351,7 +319,6 @@ export function LandingPage() {
 
             {/* 📈 GROWTH: Visual Proof */}
             <Section className="py-40 bg-white/[0.01] overflow-hidden relative">
-                <div className="absolute inset-0 bg-primary/2 blur-[100px] pointer-events-none" />
                 <div className="grid lg:grid-cols-2 gap-28 items-center">
                     <motion.div
                         initial={{ opacity: 0, x: -50 }}
@@ -382,7 +349,6 @@ export function LandingPage() {
                     </motion.div>
 
                     <div className="relative group">
-                        <div className="absolute -inset-10 bg-secondary/10 blur-[80px] rounded-full opacity-60 group-hover:opacity-100 transition-opacity duration-1000" />
                         <Card className="p-8 sm:p-12 border-white/[0.08] bg-[#0A0F1D]/80 backdrop-blur-3xl rounded-[3.5rem] shadow-glass relative z-10 space-y-8 overflow-hidden group-hover:scale-[1.01] transition-transform duration-700">
                             <div className="flex items-center justify-between border-b border-white/[0.05] pb-6">
                                 <div className="flex items-center gap-4">
@@ -418,27 +384,22 @@ export function LandingPage() {
             </Section>
 
             {/* 💰 PRICING: Premium & Minimal */}
-            <Section className="py-20 sm:py-48" id="pricing">
+            {MEMBERSHIP_UI_ENABLED && <Section className="py-20 sm:py-48" id="pricing">
                 <div className="text-center mb-32">
                     <Badge className="bg-white/[0.04] text-heaven-muted border-white/[0.08] mb-8 rounded-full h-10 px-8 uppercase tracking-[0.3em] font-bold">Investment</Badge>
-                    <h2 className="text-5xl md:text-7xl font-bold mb-10 tracking-tighter uppercase leading-none">Elite Access Plans</h2>
+                    <h2 className="text-5xl md:text-7xl font-bold mb-10 tracking-tighter uppercase leading-none">Membership Plans</h2>
                     <p className="text-xl text-heaven-muted opacity-40 font-medium italic">Scalable solutions for every stage of your creative evolution.</p>
                 </div>
 
                 <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-10">
-                    {[
-                        { name: "Entry", price: "0", features: ["Insight Dashboard", "AI Generation (Basic)", "Unified Library"] },
-                        { name: "Prime", price: "999", features: ["Everything in Entry", "Advanced Analytics", "AI Unlimited", "Marketplace Access"], popular: true },
-                        { name: "Growth", price: "2999", features: ["Everything in Prime", "Global Directory", "Agency Tools", "Priority Support"] },
-                        { name: "Enterprise", price: "Custom", features: ["Dedicated Account", "White-label Hub", "Full API Access", "Managed Campaigns"] },
-                    ].map((plan, i) => (
+                    {pricingPlans.map((plan, i) => (
                         <Card key={i} className={cn("p-12 flex flex-col items-center text-center group transition-all duration-700 rounded-[4rem] relative overflow-hidden",
                             plan.popular
                                 ? "bg-primary/[0.02] border-primary/40 shadow-soft-glow border-2"
                                 : "bg-white/[0.04] border-white/[0.08] shadow-glass hover:bg-white/[0.06]"
                         )}>
                             {plan.popular && (
-                                <div className="absolute top-0 inset-x-0 h-1 bg-primary shadow-soft-glow animate-pulse" />
+                                <div className="absolute top-0 inset-x-0 h-1 bg-primary" />
                             )}
                             <h3 className="text-2xl font-bold mb-6 text-heaven-text uppercase tracking-tight">{plan.name}</h3>
                             <div className="flex items-baseline gap-2 mb-12">
@@ -467,13 +428,12 @@ export function LandingPage() {
                         </Card>
                     ))}
                 </div>
-            </Section>
+            </Section>}
 
             {/* 🛡️ ABOUT SECTION: Core Vision */}
             <Section className="py-40 relative z-10" id="about">
                 <div className="grid lg:grid-cols-2 gap-24 items-center">
                     <div className="relative group">
-                        <div className="absolute -inset-10 bg-primary/10 blur-[80px] rounded-full opacity-60 group-hover:opacity-100 transition-opacity" />
                         <Card className="p-8 border-white/[0.08] bg-white/[0.04] backdrop-blur-3xl rounded-[4rem] relative z-10 overflow-hidden">
                             <div className="space-y-8 p-10">
                                 <Badge className="bg-primary/5 text-primary border-primary/20 mb-4 h-10 px-8">The Philosophy</Badge>
@@ -485,8 +445,8 @@ export function LandingPage() {
                                         <div className="text-[10px] font-bold text-heaven-muted uppercase tracking-[0.2em] opacity-40">System Uptime</div>
                                     </div>
                                     <div>
-                                        <div className="text-3xl font-black text-secondary tracking-tighter mb-2">Elite</div>
-                                        <div className="text-[10px] font-bold text-heaven-muted uppercase tracking-[0.2em] opacity-40">Talent Only</div>
+                                        <div className="text-3xl font-black text-secondary tracking-tighter mb-2">Creators</div>
+                                        <div className="text-[10px] font-bold text-heaven-muted uppercase tracking-[0.2em] opacity-40">Across Verticals</div>
                                     </div>
                                 </div>
                             </div>
@@ -500,7 +460,7 @@ export function LandingPage() {
                         </p>
                         <ul className="space-y-6">
                             {[
-                                "A unified OS for modern creative elite",
+                                "A unified OS for the creative community",
                                 "Zero-friction brand collaborations",
                                 "High-fidelity strategic analytics",
                                 "Secure, instantaneous revenue ledgers"
@@ -517,17 +477,14 @@ export function LandingPage() {
 
             {/* 🚀 FINAL CTA: Heavenly & Impactful */}
             <Section className="py-56 relative overflow-hidden">
-                <div className="absolute inset-0 bg-button-gradient opacity-20 blur-[160px] pointer-events-none" />
-                <Card className="relative overflow-hidden rounded-[5rem] bg-button-gradient p-28 text-center shadow-soft-glow border-none group">
-                    <div className="absolute inset-0 bg-dark/20 backdrop-blur-[4px] group-hover:backdrop-blur-0 transition-all duration-1000" />
-                    <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-white/10 rounded-full blur-[120px] -mr-[300px] -mt-[300px] animate-pulse" />
+                <Card className="relative overflow-hidden rounded-[5rem] bg-primary p-28 text-center border-none group">
                     <div className="relative z-10 flex flex-col items-center">
                         <Badge className="bg-white/20 text-white border-white/30 mb-10 h-10 px-10 uppercase font-black tracking-[0.5em] backdrop-blur-xl">Initiate Access</Badge>
                         <h2 className="text-5xl md:text-8xl font-bold mb-12 leading-[0.95] tracking-tighter text-white uppercase">Your Creative <br /> Future Awaits.</h2>
                         <p className="text-2xl text-white/70 mb-16 max-w-2xl mx-auto font-medium italic tracking-tight opacity-80 leading-relaxed">Experience a new standard of creative management. calm, powerful, and professional.</p>
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-8">
                             <Link to="/signup">
-                                <Button className="h-24 px-20 text-[13px] bg-button-gradient text-white rounded-[2.5rem] hover:scale-105 font-bold uppercase tracking-[0.4em] shadow-soft-glow active:scale-95 transition-all">Start Your Engine</Button>
+                                <Button className="h-24 px-20 text-[13px] bg-primary text-white rounded-[2.5rem] hover:scale-105 font-bold uppercase tracking-[0.4em] active:scale-95 transition-all">Start Your Engine</Button>
                             </Link>
                             <Link to="/signup">
                                 <Button variant="outline" className="h-24 px-16 text-[11px] border-white/20 text-white hover:bg-white/10 rounded-[2.5rem] font-bold uppercase tracking-[0.4em] backdrop-blur-xl transition-all">Discover Portal</Button>
@@ -542,7 +499,7 @@ export function LandingPage() {
                 <div className="max-w-7xl mx-auto px-12">
                     <div className="flex flex-col md:flex-row items-center justify-between gap-10 text-[10px] font-bold text-heaven-muted uppercase tracking-[0.4em] opacity-30">
                         <p>© 2026 CreatorsHQ. Preserving Creative Excellence.</p>
-                        <p className="flex items-center gap-3">Designed with <Sparkles className="w-3.5 h-3.5 text-primary opacity-60" /> for the Elite</p>
+                        <p className="flex items-center gap-3">Designed with <Sparkles className="w-3.5 h-3.5 text-primary opacity-60" /> for Creators</p>
                     </div>
                 </div>
             </footer>

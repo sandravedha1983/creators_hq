@@ -13,7 +13,7 @@ interface AutomationRule { id: string; condition: string; action: string; }
 interface Integration { id: string; name: string; category: string; connected: boolean; icon: string; }
 interface TeamMember { id: string; name: string; email: string; role: string; status: 'Active' | 'Invited'; }
 interface Activity {
-  id: string; type: 'system' | 'campaign' | 'message' | 'billing' | 'integration' | 'team'; message: string; timestamp: string; read: boolean;
+  id: string; type: 'system' | 'campaign' | 'message' | 'billing' | 'integration' | 'team' | 'collaboration'; title?: string; message: string; timestamp: string; read: boolean;
 }
 
 interface AppContextType {

@@ -1,14 +1,13 @@
-import React from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import {
     Users,
     Zap,
     TrendingUp,
-    ArrowUpRight,
-    Download,
     ExternalLink,
-    CheckCircle2
+    CheckCircle2,
+    Star,
+    Sparkles
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/utils/cn';
@@ -16,6 +15,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { getCreatorDashboard } from '@/services/dashboardService';
 import { useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
+import { MEMBERSHIP_UI_ENABLED } from '@/config/planVisibility';
 
 export default function Dashboard() {
     const { user } = useAuth();
@@ -29,7 +29,7 @@ export default function Dashboard() {
                 setStatsData(res.data);
             } catch (err) {
                 console.error("Failed to load creator stats", err);
-                toast.error("Critical: Neural Link Error. System Offline.");
+                toast.error("Dashboard connection sync in progress...");
             } finally {
                 setLoading(false);
             }
@@ -38,6 +38,10 @@ export default function Dashboard() {
     }, []);
 
     const isConnected = statsData?.instagram?.isConnected;
+    const growthScore = statsData?.growthScore || 0;
+    const followers = statsData?.followers || 0;
+    const engagement = statsData?.engagement || 0;
+    const earnings = statsData?.earnings || 0;
 
     if (loading) return <Spinner />;
 
@@ -46,13 +50,15 @@ export default function Dashboard() {
             {/* Header Area */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
                 <div>
-                    <h1 className="text-5xl font-black text-white tracking-tighter uppercase italic">Dashboard</h1>
+                    <h1 className="text-5xl font-black text-white tracking-tighter uppercase italic">
+                        {user?.name ? `${user.name}'s Dashboard` : 'Creator Dashboard'}
+                    </h1>
                     <div className="text-primary text-[10px] font-black uppercase tracking-[0.4em] mt-3 flex items-center gap-2">
-                        <div className="w-2 h-2 bg-primary rounded-full animate-pulse shadow-soft-glow" />
-                        System Synchronized
+                        <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-soft-glow" />
+                        Supabase PostgreSQL Synced
                     </div>
                 </div>
-                
+
                 {isConnected && (
                     <div className="px-8 py-4 bg-green-500/10 border border-green-500/20 rounded-[2rem] backdrop-blur-xl flex items-center gap-6 shadow-lg shadow-green-500/5">
                         <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center text-green-500 border border-green-500/30">
@@ -61,15 +67,17 @@ export default function Dashboard() {
                         <div className="text-left">
                             <p className="text-[10px] font-black text-green-500 uppercase tracking-widest">Instagram Connected ✅</p>
                             <div className="flex items-center gap-2 mt-1">
-                                <p className="text-sm font-black text-white">@{statsData.instagram.username}</p>
-                                <a 
-                                    href={statsData.instagram.profileLink} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="text-heaven-muted hover:text-primary transition-colors"
-                                >
-                                    <ExternalLink className="w-3.5 h-3.5" />
-                                </a>
+                                <p className="text-sm font-black text-white">@{statsData?.instagram?.username}</p>
+                                {statsData?.instagram?.profileLink && (
+                                    <a
+                                        href={statsData.instagram.profileLink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-heaven-muted hover:text-primary transition-colors"
+                                    >
+                                        <ExternalLink className="w-3.5 h-3.5" />
+                                    </a>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -77,85 +85,147 @@ export default function Dashboard() {
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <Card className="p-10 group relative overflow-hidden transition-all duration-500 bg-[#0A0F1D] border-white/[0.05]">
-                    <div className="flex items-center justify-between mb-8">
-                        <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-primary/10 text-primary border border-primary/20 shadow-glass">
-                            <Users className="w-8 h-8" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {/* Growth Score */}
+                <Card className="p-8 group relative overflow-hidden transition-all duration-500 bg-[#0A0F1D] border-white/[0.08] hover:border-primary/30">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-primary/10 text-primary border border-primary/20 shadow-glass">
+                            <Star className="w-7 h-7" />
                         </div>
+                        <span className="text-[10px] font-black text-primary uppercase tracking-widest px-3 py-1 bg-primary/10 rounded-full border border-primary/20">
+                            Rating
+                        </span>
                     </div>
-                    <p className="text-[10px] text-heaven-muted font-black uppercase tracking-[0.2em] opacity-40">Connection Status</p>
-                    <h3 className="text-3xl font-black text-heaven-text mt-3 tracking-tight">
-                        {isConnected ? "Linked & Active" : "Disconnected"}
+                    <p className="text-[10px] text-heaven-muted font-black uppercase tracking-[0.2em] opacity-50">Growth Score</p>
+                    <h3 className="text-4xl font-black text-heaven-text mt-2 tracking-tight">
+                        {growthScore > 0 ? `${growthScore}/100` : 'Calibrating'}
                     </h3>
-                    {!isConnected && (
-                        <Button 
-                            variant="primary" 
-                            onClick={() => window.location.href = '/integrations'}
-                            className="mt-6 h-12 px-6 rounded-xl text-[9px] font-black uppercase tracking-widest"
-                        >
-                            Connect Now
-                        </Button>
-                    )}
+                    <p className="text-[9px] text-heaven-muted/50 font-bold mt-2 uppercase tracking-widest">
+                        {growthScore >= 80 ? 'High performance' : 'Profile completeness driven'}
+                    </p>
                 </Card>
 
-                <Card className="p-10 group relative overflow-hidden transition-all duration-500 bg-[#0A0F1D] border-white/[0.05]">
-                    <div className="flex items-center justify-between mb-8">
-                        <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-secondary/10 text-secondary border border-secondary/20 shadow-glass">
-                            <TrendingUp className="w-8 h-8" />
+                {/* Audience / Followers */}
+                <Card className="p-8 group relative overflow-hidden transition-all duration-500 bg-[#0A0F1D] border-white/[0.08] hover:border-primary/30">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-secondary/10 text-secondary border border-secondary/20 shadow-glass">
+                            <Users className="w-7 h-7" />
                         </div>
+                        <span className="text-[10px] font-black text-secondary uppercase tracking-widest px-3 py-1 bg-secondary/10 rounded-full border border-secondary/20">
+                            Reach
+                        </span>
                     </div>
-                    <p className="text-[10px] text-heaven-muted font-black uppercase tracking-[0.2em] opacity-40">Growth Matrix</p>
-                    <h3 className="text-3xl font-black text-heaven-text mt-3 tracking-tight">
-                        {isConnected ? "Standby" : "No Data"}
+                    <p className="text-[10px] text-heaven-muted font-black uppercase tracking-[0.2em] opacity-50">Audience Network</p>
+                    <h3 className="text-4xl font-black text-heaven-text mt-2 tracking-tight">
+                        {followers > 0 ? followers.toLocaleString() : '—'}
                     </h3>
-                    <p className="text-[9px] text-heaven-muted/40 font-bold mt-3 uppercase tracking-widest italic">Syncing historical nodes...</p>
+                    <p className="text-[9px] text-heaven-muted/50 font-bold mt-2 uppercase tracking-widest">
+                        {followers > 0 ? 'Verified network followers' : 'Connect socials to sync'}
+                    </p>
                 </Card>
 
-                <Card className="p-10 group relative overflow-hidden transition-all duration-500 bg-[#0A0F1D] border-white/[0.05]">
-                    <div className="flex items-center justify-between mb-8">
-                        <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-accent/10 text-accent border border-accent/20 shadow-glass">
-                            <Zap className="w-8 h-8" />
+                {/* Engagement Rate */}
+                <Card className="p-8 group relative overflow-hidden transition-all duration-500 bg-[#0A0F1D] border-white/[0.08] hover:border-primary/30">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-glass">
+                            <TrendingUp className="w-7 h-7" />
                         </div>
+                        <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest px-3 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/20">
+                            Interaction
+                        </span>
                     </div>
-                    <p className="text-[10px] text-heaven-muted font-black uppercase tracking-[0.2em] opacity-40">Platform Revenue</p>
-                    <h3 className="text-3xl font-black text-heaven-text mt-3 tracking-tight">
-                        ₹0.00
+                    <p className="text-[10px] text-heaven-muted font-black uppercase tracking-[0.2em] opacity-50">Engagement Rate</p>
+                    <h3 className="text-4xl font-black text-heaven-text mt-2 tracking-tight">
+                        {engagement > 0 ? `${engagement}%` : '—'}
                     </h3>
-                    <p className="text-[9px] text-heaven-muted/40 font-bold mt-3 uppercase tracking-widest italic">Pending brand verification</p>
+                    <p className="text-[9px] text-heaven-muted/50 font-bold mt-2 uppercase tracking-widest">
+                        {engagement > 0 ? 'Audience response ratio' : 'Syncing interaction pulse'}
+                    </p>
+                </Card>
+
+                {/* Platform Revenue */}
+                <Card className="p-8 group relative overflow-hidden transition-all duration-500 bg-[#0A0F1D] border-white/[0.08] hover:border-primary/30">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-accent/10 text-accent border border-accent/20 shadow-glass">
+                            <Zap className="w-7 h-7" />
+                        </div>
+                        <span className="text-[10px] font-black text-accent uppercase tracking-widest px-3 py-1 bg-accent/10 rounded-full border border-accent/20">
+                            Ledger
+                        </span>
+                    </div>
+                    <p className="text-[10px] text-heaven-muted font-black uppercase tracking-[0.2em] opacity-50">Recorded Earnings</p>
+                    <h3 className="text-4xl font-black text-heaven-text mt-2 tracking-tight">
+                        ₹{Number(earnings).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </h3>
+                    <p className="text-[9px] text-heaven-muted/50 font-bold mt-2 uppercase tracking-widest">
+                        Settled campaign payouts
+                    </p>
                 </Card>
             </div>
 
-            {/* Main Insight Area */}
-            <Card className="p-16 min-h-[400px] flex flex-col items-center justify-center text-center relative overflow-hidden bg-[#0A0F1D]/50 border-dashed border-white/10">
-                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] -mr-[250px] -mt-[250px]" />
-                
-                <div className="relative z-10 max-w-xl space-y-10">
-                    <div className="w-24 h-24 rounded-[2rem] bg-white/5 border border-white/10 flex items-center justify-center mx-auto shadow-glass">
-                        <TrendingUp className={cn("w-10 h-10", isConnected ? "text-primary animate-pulse" : "text-heaven-muted/20")} />
-                    </div>
-                    
-                    <div className="space-y-4">
-                        <h2 className="text-3xl font-black text-white tracking-tighter uppercase italic">Platform Pulse</h2>
-                        <p className="text-sm text-heaven-muted font-medium leading-relaxed opacity-60">
-                            {isConnected 
-                                ? "System successfully linked to your Instagram identity. Data ingestion pipelines are warming up. Check back shortly for real-time analytics stream."
-                                : "Insight modules are currently dormant. Establish a platform link in the App Directory to begin real-time data ingestion and neural analysis."
+            {/* Main Insight & Quick Actions */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <Card className="p-12 lg:col-span-2 rounded-[3.5rem] flex flex-col justify-between relative overflow-hidden bg-[#0A0F1D]/80 border-white/[0.08]">
+                    <div className="space-y-6 relative z-10">
+                        <div className="flex items-center gap-3">
+                            <Sparkles className="w-5 h-5 text-primary" />
+                            <span className="text-xs font-black uppercase tracking-widest text-primary">Algorithm Diagnostics</span>
+                        </div>
+                        <h2 className="text-3xl font-black text-white tracking-tight uppercase">Platform Pulse & Recommendation</h2>
+                        <p className="text-sm text-heaven-muted font-medium leading-relaxed max-w-xl">
+                            {growthScore < 50
+                                ? "Complete your profile bio, niche categories, and portfolio items to elevate your Growth Score. Creators with score 70+ receive 4.5x more brand sponsorship inquiries."
+                                : "Your creator profile is performing in the upper tier! Leverage AI Studio to generate compelling pitch templates and apply directly to open Brand Campaigns."
                             }
                         </p>
                     </div>
 
-                    {!isConnected && (
+                    <div className="flex flex-wrap gap-4 pt-8 relative z-10">
                         <Button
-                            onClick={() => window.location.href = '/integrations'}
+                            onClick={() => window.location.href = '/ai-studio'}
                             variant="primary"
-                            className="h-16 px-12 rounded-[2rem] font-black text-[10px] uppercase tracking-[0.4em] shadow-soft-glow"
+                            className="h-14 px-8 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-soft-glow"
                         >
-                            Initialize Connection
+                            Open AI Studio
                         </Button>
-                    )}
-                </div>
-            </Card>
+                        <Button
+                            onClick={() => window.location.href = '/marketplace'}
+                            variant="secondary"
+                            className="h-14 px-8 rounded-2xl font-black text-[10px] uppercase tracking-widest border-white/10"
+                        >
+                            Browse Campaigns
+                        </Button>
+                    </div>
+                </Card>
+
+                <Card className="p-10 rounded-[3.5rem] bg-[#0A0F1D]/80 border-white/[0.08] flex flex-col justify-between">
+                    <div>
+                        <h3 className="text-lg font-bold text-heaven-text uppercase mb-4">Verification State</h3>
+                        <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/[0.05] space-y-3">
+                            <div className="flex justify-between items-center text-xs">
+                                <span className="text-heaven-muted font-medium">Status:</span>
+                                <span className="font-bold text-primary uppercase">
+                                    {user?.verificationStatus || 'Active'}
+                                </span>
+                            </div>
+                            {MEMBERSHIP_UI_ENABLED && <div className="flex justify-between items-center text-xs">
+                                <span className="text-heaven-muted font-medium">Plan Tier:</span>
+                                <span className="font-bold text-emerald-400 uppercase">
+                                    {user?.plan === 'pro' ? 'Radiance Pro' : 'Beta Free Tier'}
+                                </span>
+                            </div>}
+                        </div>
+                    </div>
+
+                    <Button
+                        onClick={() => window.location.href = '/profile'}
+                        variant="secondary"
+                        className="w-full h-14 rounded-2xl font-bold uppercase tracking-wider text-[10px] border-white/10 mt-6"
+                    >
+                        Edit Public Profile
+                    </Button>
+                </Card>
+            </div>
         </div>
     );
 }

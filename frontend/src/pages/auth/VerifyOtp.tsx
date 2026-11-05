@@ -50,7 +50,7 @@ export default function VerifyOtp() {
             const roleRedirects: Record<string, string> = {
                 creator: '/creator-dashboard', // Matches App.tsx route
                 brand: '/brand-dashboard',
-                admin: '/admin-dashboard'
+                admin: '/admin/dashboard'
             };
             navigate(roleRedirects[user.role] || '/dashboard');
         }
@@ -135,7 +135,7 @@ export default function VerifyOtp() {
                 className="w-full max-w-xl relative z-10"
             >
                 <Card className="p-6 sm:p-16 bg-[#050810]/90 border border-white/[0.08] backdrop-blur-3xl rounded-[3rem] sm:rounded-[5rem] shadow-glass relative overflow-hidden">
-                    <div className="absolute top-0 inset-x-0 h-1.5 bg-button-gradient shadow-soft-glow" />
+                    <div className="absolute top-0 inset-x-0 h-1.5 bg-primary" />
 
                     <div className="flex flex-col items-center mb-12 sm:mb-16 relative z-10">
                         <div className="w-16 h-16 sm:w-24 sm:h-24 bg-primary/10 border border-primary/20 rounded-[2rem] sm:rounded-[2.5rem] flex items-center justify-center text-primary mb-8 sm:mb-10 shadow-glass">

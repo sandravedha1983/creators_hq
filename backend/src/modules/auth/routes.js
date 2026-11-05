@@ -26,9 +26,17 @@ router.post('/admin-login', authController.adminLogin);
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password', authController.resetPassword);
 
+const isOauthConfigured = (clientId, clientSecret) => {
+  return clientId && 
+         clientSecret && 
+         !clientId.includes('your_') && 
+         !clientSecret.includes('your_') &&
+         !clientId.includes('dummy_');
+};
+
 // Google OAuth
 router.get("/google", (req, res, next) => {
-  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+  if (!isOauthConfigured(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET)) {
     const redirectUrl = getFrontendUrl(req);
     return res.redirect(`${redirectUrl}/login?error=google_not_configured`);
   }
@@ -36,7 +44,7 @@ router.get("/google", (req, res, next) => {
 });
 
 router.get("/google/callback", (req, res, next) => {
-  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+  if (!isOauthConfigured(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET)) {
     const redirectUrl = getFrontendUrl(req);
     return res.redirect(`${redirectUrl}/login?error=google_not_configured`);
   }
@@ -53,7 +61,7 @@ router.get("/google/callback", (req, res, next) => {
 
 // LinkedIn OAuth
 router.get("/linkedin", (req, res, next) => {
-  if (!process.env.LINKEDIN_CLIENT_ID || !process.env.LINKEDIN_CLIENT_SECRET) {
+  if (!isOauthConfigured(process.env.LINKEDIN_CLIENT_ID, process.env.LINKEDIN_CLIENT_SECRET)) {
     const redirectUrl = getFrontendUrl(req);
     return res.redirect(`${redirectUrl}/login?error=linkedin_not_configured`);
   }
@@ -61,7 +69,7 @@ router.get("/linkedin", (req, res, next) => {
 });
 
 router.get("/linkedin/callback", (req, res, next) => {
-  if (!process.env.LINKEDIN_CLIENT_ID || !process.env.LINKEDIN_CLIENT_SECRET) {
+  if (!isOauthConfigured(process.env.LINKEDIN_CLIENT_ID, process.env.LINKEDIN_CLIENT_SECRET)) {
     const redirectUrl = getFrontendUrl(req);
     return res.redirect(`${redirectUrl}/login?error=linkedin_not_configured`);
   }

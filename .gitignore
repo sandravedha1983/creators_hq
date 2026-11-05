@@ -1,4 +1,22 @@
-node_modules
-dist
+# Dependencies
+**/node_modules/
+
+# Environment secrets
 .env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
+# Build outputs and caches
+**/dist/
+**/dist-ssr/
+**/coverage/
+**/.vite/
+**/.next/
+
+# Logs and operating system files
+*.log
+npm-debug.log*
 .DS_Store

@@ -3,7 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const controllers = require('./controllers');
-const { authenticate } = require('../../middleware/auth'); // Assuming auth middleware exists
+const { authenticate, authorize } = require('../../middleware/auth');
 
 const router = express.Router();
 
@@ -29,6 +29,7 @@ router.post('/', controllers.generateCode);
 router.post('/check', controllers.checkVerification);
 router.post('/submit', upload.single('screenshot'), controllers.submitVerification);
 router.get('/status', controllers.getStatus);
-router.patch('/:id', controllers.updateStatus);
+router.patch('/:id', authorize('admin'), controllers.updateStatus);
+
 
 module.exports = router;

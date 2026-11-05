@@ -32,7 +32,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
         const roleRedirects: Record<string, string> = {
             creator: '/creator-dashboard',
             brand: '/brand-dashboard',
-            admin: '/admin-dashboard'
+            admin: '/admin/dashboard'
         };
         return <Navigate to={roleRedirects[user.role]} replace />;
     }

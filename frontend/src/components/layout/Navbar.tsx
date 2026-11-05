@@ -47,7 +47,7 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                             {user?.role || 'Creator'} Tier
                         </p>
                     </div>
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-button-gradient rounded-xl flex items-center justify-center text-white font-bold text-base transition-all duration-300 group-hover:scale-105 shadow-soft-glow relative overflow-hidden">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary rounded-xl flex items-center justify-center text-white font-bold text-base transition-all duration-300 group-hover:scale-105 relative overflow-hidden">
                         <span className="relative z-10">{user?.name?.[0] || 'V'}</span>
                     </div>
                 </div>

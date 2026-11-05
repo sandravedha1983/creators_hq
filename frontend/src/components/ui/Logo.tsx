@@ -37,7 +37,7 @@ export function Logo({ className, size = 'md', showText = false }: LogoProps) {
         <div className={cn("flex items-center gap-3 select-none", className)}>
             {/* Elegant SVG Badge */}
             <div className={cn(
-                "flex items-center justify-center bg-gradient-to-tr from-primary via-indigo-500 to-secondary p-[1.5px] shadow-soft-glow",
+                "flex items-center justify-center bg-primary p-[1.5px]",
                 currentSize.container
             )}>
                 <div className="w-full h-full bg-[#050810]/95 rounded-[inherit] flex items-center justify-center">
@@ -45,7 +45,7 @@ export function Logo({ className, size = 'md', showText = false }: LogoProps) {
                         viewBox="0 0 24 24"
                         fill="none"
                         xmlns="http://www.w3.org/2000/svg"
-                        className={cn("text-transparent bg-clip-text bg-gradient-to-tr from-primary to-secondary", currentSize.svg)}
+                        className={cn("text-primary", currentSize.svg)}
                     >
                         <path
                             d="M12 2L2 7L12 12L22 7L12 2Z"
@@ -69,7 +69,7 @@ export function Logo({ className, size = 'md', showText = false }: LogoProps) {
                             strokeWidth="2.5"
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            className="text-indigo-400"
+                            className="text-accent"
                         />
                     </svg>
                 </div>

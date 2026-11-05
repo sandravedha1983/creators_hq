@@ -22,7 +22,9 @@ app.use(passport.initialize());
 // CORS: Use specific origin instead of wildcard when credentials are enabled
 const allowedOrigins = [
     process.env.FRONTEND_URL,
+    process.env.ADMIN_URL,
     'http://localhost:5173',
+    'http://localhost:5174',
     'http://localhost:3000'
 ].filter(Boolean);
 
@@ -86,8 +88,11 @@ app.use('/api/creators', require('./modules/creators/routes'));
 app.use('/api/collaborations', require('./modules/collaborations/routes'));
 app.use('/api/market', require('./modules/market/routes'));
 app.use('/api/leads', require('./modules/leads/routes'));
+app.use('/api/notifications', require('./modules/notifications/routes'));
+app.use('/api/feedback', require('./modules/feedback/routes'));
 app.use('/api/analytics', require('./modules/analytics/routes'));
 app.use('/api/billing', require('./modules/billing/routes'));
+app.use('/api/waitlist', require('./modules/waitlist/routes'));
 app.use('/uploads', express.static('uploads'));
 // app.use('/automation', require('./modules/automation/routes')); // Disable if Redis is not running
 

@@ -20,7 +20,7 @@ export default function VerificationPage() {
     useEffect(() => {
         if (user?.verificationStatus === 'verified') {
             const dashboardPath = user?.role === 'brand' ? '/brand-dashboard' : 
-                                user?.role === 'admin' ? '/admin-dashboard' : '/creator-dashboard';
+                                user?.role === 'admin' ? '/admin/dashboard' : '/creator-dashboard';
             navigate(dashboardPath);
         }
     }, [user, navigate]);
@@ -163,7 +163,7 @@ export default function VerificationPage() {
                 className="w-full max-w-2xl relative z-10"
             >
                 <Card className="p-8 sm:p-16 bg-[#050810]/90 border border-white/[0.08] backdrop-blur-3xl rounded-[3rem] shadow-glass relative">
-                    <div className="absolute top-0 inset-x-0 h-1.5 bg-button-gradient shadow-soft-glow rounded-t-full" />
+                    <div className="absolute top-0 inset-x-0 h-1.5 bg-primary rounded-t-full" />
                     
                     <div className="flex flex-col items-center mb-12 text-center">
                         <div className="w-20 h-20 bg-primary/10 border border-primary/20 rounded-3xl flex items-center justify-center text-primary mb-8 shadow-glass">

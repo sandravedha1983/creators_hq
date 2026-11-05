@@ -9,6 +9,7 @@ import {
     Save, RefreshCw, Star, ShieldCheck, Globe, Twitter
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { MEMBERSHIP_UI_ENABLED } from '@/config/planVisibility';
 import { motion } from 'framer-motion';
 import { cn } from '@/utils/cn';
 import { toast } from 'react-hot-toast';
@@ -158,10 +159,9 @@ export default function Profile() {
                 {/* ── Avatar card ─────────────────────────────────────────── */}
                 <div className="lg:col-span-1 space-y-12">
                     <Card className="p-12 border-white/[0.08] bg-white/[0.04] backdrop-blur-xl rounded-[4rem] flex flex-col items-center text-center relative overflow-hidden group shadow-glass">
-                        <div className="absolute top-0 inset-x-0 h-48 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
                         <div className="relative mt-8 mb-10 z-10">
                             <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
-                            <div className="w-36 h-36 bg-gradient-to-br from-primary via-secondary to-accent rounded-[3.5rem] p-[2px] shadow-soft-glow group-hover:rotate-3 transition-transform duration-700">
+                            <div className="w-36 h-36 bg-primary rounded-[3.5rem] p-[2px] group-hover:rotate-3 transition-transform duration-700">
                                 <div className="w-full h-full rounded-[3.4rem] bg-dark flex items-center justify-center overflow-hidden border-4 border-dark">
                                     {previewUrl ? (
                                         <img src={previewUrl} className="w-full h-full object-cover" alt="Profile" />
@@ -333,7 +333,7 @@ export default function Profile() {
                         </div>
                     </Card>
 
-                    <Card className="p-12 bg-gradient-to-r from-primary/10 to-secondary/10 border-white/[0.08] shadow-glass rounded-[4rem] text-heaven-text relative overflow-hidden group">
+                    {MEMBERSHIP_UI_ENABLED && <Card className="p-12 bg-primary/10 border-white/[0.08] shadow-glass rounded-[4rem] text-heaven-text relative overflow-hidden group">
                         <div className="absolute inset-0 bg-dark/20 backdrop-blur-[2px]" />
                         <div className="flex flex-col md:flex-row items-center justify-between gap-10 relative z-10">
                             <div className="flex items-center gap-8">
@@ -355,7 +355,7 @@ export default function Profile() {
                                 </Button>
                             )}
                         </div>
-                    </Card>
+                    </Card>}
                 </div>
             </form>
         </div>

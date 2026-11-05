@@ -181,7 +181,7 @@ export default function Campaigns() {
                                         )}
                                         <div className="flex items-center justify-between mb-8 relative z-10">
                                             <div className="flex items-center gap-5">
-                                                <div className="w-12 h-12 bg-button-gradient text-white rounded-xl flex items-center justify-center font-bold text-lg shadow-soft-glow">
+                                                <div className="w-12 h-12 bg-primary text-white rounded-xl flex items-center justify-center font-bold text-lg">
                                                     {c.title[0]}
                                                 </div>
                                                 <div>

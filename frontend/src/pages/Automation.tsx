@@ -21,6 +21,7 @@ import { useAppContext } from '@/context/AppContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/utils/cn';
 import { toast } from 'react-hot-toast';
+import { MEMBERSHIP_UI_ENABLED } from '@/config/planVisibility';
 
 export default function Automation() {
     const { rules, addRule } = useAppContext();
@@ -149,12 +150,9 @@ export default function Automation() {
                         </div>
                     </Card>
 
-                    <Card className="p-12 border-none bg-gradient-to-br from-primary to-secondary text-white rounded-[3.5rem] shadow-soft-glow relative overflow-hidden group">
-                        <div className="absolute inset-0 bg-dark/20 backdrop-blur-[2px]" />
-                        <div className="absolute top-0 right-0 w-40 h-40 bg-white/20 rounded-full blur-[60px] -mr-20 -mt-20 group-hover:scale-110 transition-transform duration-700" />
-
+                    {MEMBERSHIP_UI_ENABLED && <Card className="p-12 border-none bg-primary text-white rounded-[3.5rem] relative overflow-hidden group">
                         <div className="relative z-10 space-y-8">
-                            <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30 text-white shadow-glass">
+                            <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center border border-white/30 text-white">
                                 <Shield className="w-7 h-7" />
                             </div>
                             <div className="space-y-4">
@@ -165,7 +163,7 @@ export default function Automation() {
                                 Upgrade Plan
                             </Button>
                         </div>
-                    </Card>
+                    </Card>}
                 </div>
             </div>
 

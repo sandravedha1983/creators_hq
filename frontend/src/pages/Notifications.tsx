@@ -1,45 +1,128 @@
-import React, { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import {
-    Bell, CheckCheck, Clock, Shield,
-    Zap, ShoppingBag, MessageSquare, AlertCircle,
-    Server, Activity as ActivityIcon, ChevronRight, Archive, CheckCircle2
+    Bell, CheckCheck,
+    Zap, ShoppingBag, MessageSquare,
+    Server, Activity as ActivityIcon, Users
 } from "lucide-react";
 import { useAppContext } from "@/context/AppContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/utils/cn";
 import { toast } from "react-hot-toast";
+import API from "@/services/api";
+import { MEMBERSHIP_UI_ENABLED } from '@/config/planVisibility';
+
+interface NotificationItem {
+    id: string;
+    title?: string;
+    message: string;
+    type: string;
+    read: boolean;
+    created_at?: string;
+    createdAt?: string;
+}
 
 export default function Notifications() {
     const { activities, markActivitiesRead } = useAppContext();
-    const [filter, setFilter] = useState<'all' | 'campaign' | 'system' | 'message'>('all');
+    const [liveNotifications, setLiveNotifications] = useState<NotificationItem[]>([]);
+    const [unreadCount, setUnreadCount] = useState<number>(0);
+    const [filter, setFilter] = useState<'all' | 'collaboration' | 'campaign' | 'system'>('all');
+    const [loading, setLoading] = useState(false);
 
-    const filteredActivities = activities.filter(a => filter === 'all' || a.type === filter);
+    const loadNotifications = useCallback(async () => {
+        setLoading(true);
+        try {
+            const res = await API.get('/api/notifications');
+            if (res.data?.success) {
+                const notifications = res.data.data || [];
+                setLiveNotifications(notifications);
+                setUnreadCount(notifications.filter((n: NotificationItem) =>
+                    (MEMBERSHIP_UI_ENABLED || n.type !== 'billing') && !n.read
+                ).length);
+            }
+        } catch {
+            // Fallback to local activities if network error
+            const notifications = activities.map(a => ({
+                id: a.id,
+                title: a.title ?? a.message,
+                message: a.message,
+                type: a.type,
+                read: a.read,
+                created_at: a.timestamp
+            }));
+            setLiveNotifications(notifications);
+            setUnreadCount(notifications.filter(n =>
+                (MEMBERSHIP_UI_ENABLED || n.type !== 'billing') && !n.read
+            ).length);
+        } finally {
+            setLoading(false);
+        }
+    }, [activities]);
+
+    useEffect(() => {
+        loadNotifications();
+    }, [loadNotifications]);
+
+    const handleMarkAllRead = async () => {
+        try {
+            await API.patch('/api/notifications/read-all');
+            setLiveNotifications(prev => prev.map(n => ({ ...n, read: true })));
+            setUnreadCount(0);
+            markActivitiesRead();
+            toast.success('All notifications marked as read');
+        } catch {
+            markActivitiesRead();
+            toast.success('All notifications marked as read');
+        }
+    };
+
+    const handleMarkSingleRead = async (id: string) => {
+        try {
+            await API.patch(`/api/notifications/${id}/read`);
+            setLiveNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+            setUnreadCount(c => Math.max(0, c - 1));
+        } catch {
+            // Handled
+        }
+    };
+
+    const displayList = liveNotifications.length > 0
+        ? liveNotifications.filter(n =>
+            (MEMBERSHIP_UI_ENABLED || n.type !== 'billing') && (filter === 'all' || n.type === filter)
+        )
+        : activities.filter(a =>
+            (MEMBERSHIP_UI_ENABLED || a.type !== 'billing') && (filter === 'all' || a.type === filter)
+        ).map(a => ({
+            id: a.id,
+            title: a.title ?? a.message,
+            message: a.message,
+            type: a.type,
+            read: a.read,
+            created_at: a.timestamp
+        }));
 
     const getIcon = (type: string) => {
         switch (type) {
-            case 'campaign': return <ShoppingBag className="w-6 h-6" />;
-            case 'message': return <MessageSquare className="w-6 h-6" />;
-            case 'billing': return <Zap className="w-6 h-6" />;
-            case 'system': return <Server className="w-6 h-6" />;
-            default: return <Bell className="w-6 h-6" />;
+            case 'campaign':
+            case 'application': return <ShoppingBag className="w-5 h-5" />;
+            case 'collaboration': return <Users className="w-5 h-5" />;
+            case 'message': return <MessageSquare className="w-5 h-5" />;
+            case 'billing': return <Zap className="w-5 h-5" />;
+            case 'system': return <Server className="w-5 h-5" />;
+            default: return <Bell className="w-5 h-5" />;
         }
     };
 
     const getColor = (type: string) => {
         switch (type) {
-            case 'campaign': return 'text-primary bg-primary/10 border-primary/20 shadow-soft-glow';
+            case 'campaign':
+            case 'application': return 'text-primary bg-primary/10 border-primary/20 shadow-soft-glow';
+            case 'collaboration': return 'text-secondary bg-secondary/10 border-secondary/20 shadow-soft-glow';
             case 'message': return 'text-secondary bg-secondary/10 border-secondary/20 shadow-soft-glow';
             case 'billing': return 'text-accent bg-accent/10 border-accent/20 shadow-soft-glow';
-            case 'system': return 'text-primary bg-primary/10 border-primary/20 shadow-soft-glow';
-            default: return 'text-heaven-muted/40 bg-white/5 border-white/10';
+            default: return 'text-primary bg-primary/10 border-primary/20 shadow-soft-glow';
         }
-    };
-
-    const handleMarkRead = () => {
-        markActivitiesRead();
-        toast.success('All notifications marked as read');
     };
 
     return (
@@ -49,16 +132,16 @@ export default function Notifications() {
                     <h1 className="text-5xl font-bold text-heaven-text tracking-tight uppercase flex items-center gap-8 cursor-default">
                         Recent Activity
                         <div className="flex items-center justify-center w-14 h-14 rounded-[1.25rem] bg-primary text-xl font-bold text-white shadow-soft-glow animate-pulse">
-                            {activities.filter(a => !a.read).length}
+                            {unreadCount}
                         </div>
                     </h1>
                     <p className="text-heaven-muted text-[10px] font-bold mt-6 uppercase tracking-[0.4em] flex items-center gap-4 opacity-60">
                         <ActivityIcon className="w-4 h-4 text-primary animate-pulse" />
-                        System Monitoring Active
+                        Live Event Monitor Active
                     </p>
                 </div>
                 <Button
-                    onClick={handleMarkRead}
+                    onClick={handleMarkAllRead}
                     variant="primary"
                     className="h-16 px-12 rounded-[2.25rem] font-bold text-[10px] uppercase tracking-[0.4em] flex items-center gap-4 shadow-soft-glow transition-all"
                 >
@@ -68,98 +151,68 @@ export default function Notifications() {
             </div>
 
             <div className="flex gap-4 overflow-x-auto pb-6 no-scrollbar items-center">
-                {['all', 'campaign', 'message', 'system'].map((f) => (
+                {[
+                    { key: 'all', label: 'All Alerts' },
+                    { key: 'collaboration', label: 'Collaborations' },
+                    { key: 'campaign', label: 'Campaigns' },
+                    { key: 'system', label: 'System' }
+                ].map((f) => (
                     <Button
-                        key={f}
-                        onClick={() => setFilter(f as any)}
+                        key={f.key}
+                        onClick={() => setFilter(f.key as any)}
                         className={cn(
                             "h-14 px-10 rounded-2xl font-bold text-[10px] uppercase tracking-[0.3em] transition-all border shadow-glass",
-                            filter === f ? 'bg-primary text-white border-primary/20 shadow-soft-glow' : 'bg-white/[0.04] text-heaven-muted border-white/[0.08] hover:bg-white/[0.08] hover:text-heaven-text'
+                            filter === f.key ? 'bg-primary text-white border-primary/20 shadow-soft-glow' : 'bg-white/[0.04] text-heaven-muted border-white/[0.08] hover:bg-white/[0.08] hover:text-heaven-text'
                         )}
                     >
-                        {f}
+                        {f.label}
                     </Button>
                 ))}
             </div>
 
             <div className="space-y-6">
                 <AnimatePresence mode="popLayout">
-                    {filteredActivities.length > 0 ? (
-                        filteredActivities.map((activity, idx) => (
+                    {displayList.length > 0 ? (
+                        displayList.map((item, idx) => (
                             <motion.div
-                                key={activity.id}
+                                key={item.id}
                                 layout
                                 initial={{ opacity: 0, x: -30 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, scale: 0.95 }}
                                 transition={{ delay: idx * 0.05, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                                onClick={() => !item.read && handleMarkSingleRead(item.id)}
                             >
                                 <Card className={cn(
-                                    "p-10 border-white/[0.08] backdrop-blur-xl rounded-[3.5rem] flex items-center gap-10 group hover:border-white/[0.12] transition-all shadow-glass overflow-hidden relative",
-                                    activity.read ? 'bg-white/[0.02] opacity-40 hover:opacity-60' : 'bg-white/[0.06] border-l-4 border-l-primary shadow-soft-glow'
+                                    "p-8 border-white/[0.08] backdrop-blur-xl rounded-[2.5rem] flex items-center gap-8 group hover:border-white/[0.12] transition-all shadow-glass overflow-hidden relative cursor-pointer",
+                                    item.read ? 'bg-white/[0.02] opacity-50 hover:opacity-80' : 'bg-white/[0.06] border-l-4 border-l-primary shadow-soft-glow'
                                 )}>
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-primary/10 transition-colors duration-1000" />
-
-                                    <div className={cn(
-                                        "w-18 h-18 rounded-[1.75rem] flex items-center justify-center shrink-0 shadow-glass border transition-all duration-700 group-hover:rotate-6 relative z-10",
-                                        getColor(activity.type)
-                                    )}>
-                                        {getIcon(activity.type)}
+                                    <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border", getColor(item.type))}>
+                                        {getIcon(item.type)}
                                     </div>
-                                    <div className="flex-1 relative z-10">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-heaven-muted opacity-40">
-                                                {activity.type} update
-                                            </p>
-                                            <span className="text-[10px] font-bold text-heaven-muted/20 flex items-center gap-3 uppercase tracking-widest">
-                                                <Clock className="w-4 h-4 opacity-40" />
-                                                {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    <div className="flex-1 space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-base font-bold text-heaven-text uppercase tracking-tight">{item.title}</h3>
+                                            <span className="text-[10px] text-heaven-muted uppercase tracking-widest font-bold opacity-40">
+                                                {item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Just now'}
                                             </span>
                                         </div>
-                                        <p className={cn(
-                                            "text-xl font-bold tracking-tight uppercase transition-colors leading-tight",
-                                            activity.read ? 'text-heaven-muted' : 'text-heaven-text'
-                                        )}>
-                                            {activity.message}
-                                        </p>
+                                        <p className="text-xs text-heaven-muted leading-relaxed font-medium">{item.message}</p>
                                     </div>
-                                    <div className="opacity-0 group-hover:opacity-100 transition-all relative z-10 pr-6">
-                                        <Button variant="secondary" className="h-14 w-14 p-0 rounded-2xl bg-white/[0.02] border-white/[0.08] text-heaven-muted hover:text-heaven-text">
-                                            <ChevronRight className="w-7 h-7" />
-                                        </Button>
-                                    </div>
+                                    {!item.read && (
+                                        <div className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse shrink-0 shadow-soft-glow" />
+                                    )}
                                 </Card>
                             </motion.div>
                         ))
                     ) : (
-                        <Card className="text-center py-60 border-2 border-dashed border-white/[0.08] rounded-[5rem] bg-white/[0.02] flex flex-col items-center backdrop-blur-xl">
-                            <div className="w-28 h-28 bg-white/[0.04] rounded-[3rem] shadow-glass border border-white/[0.08] flex items-center justify-center text-heaven-muted/10 mx-auto mb-10 opacity-20">
-                                <Bell className="w-14 h-14" />
-                            </div>
-                            <h3 className="text-4xl font-bold text-heaven-text tracking-tight uppercase cursor-default">Archive Entry Void</h3>
-                            <p className="text-[10px] font-bold text-heaven-muted uppercase tracking-[0.5em] mt-6 leading-loose opacity-40 max-w-sm mx-auto">Your activity ledger is currently empty. Connect platforms to see real-time updates.</p>
-                        </Card>
+                        <div className="py-24 text-center space-y-4">
+                            <Bell className="w-12 h-12 text-heaven-muted/20 mx-auto" />
+                            <p className="text-xs font-bold uppercase tracking-widest text-heaven-muted/40">No alerts in this category</p>
+                        </div>
                     )}
                 </AnimatePresence>
             </div>
-
-            <Card className="p-16 border-none bg-gradient-to-br from-primary to-secondary text-white rounded-[5rem] shadow-soft-glow relative overflow-hidden group">
-                <div className="absolute inset-0 bg-dark/20 backdrop-blur-[2px]" />
-                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-white/10 rounded-full blur-[100px] -mr-[250px] -mt-[250px] group-hover:scale-110 transition-transform duration-1000" />
-
-                <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-12">
-                    <div className="space-y-6 text-center md:text-left">
-                        <h3 className="text-4xl font-bold tracking-tight uppercase leading-none flex items-center justify-center md:justify-start gap-6">
-                           <Archive className="w-10 h-10 shadow-soft-glow" />
-                           Activity Archiving
-                        </h3>
-                        <p className="text-white/70 font-bold text-[10px] uppercase tracking-widest leading-loose max-w-xl opacity-80">System automatically archives activity older than 30 days to maintain peak performance for your dashboard streams.</p>
-                    </div>
-                    <Button variant="glass" className="h-20 px-14 bg-white/10 backdrop-blur-xl text-white font-bold text-[10px] uppercase tracking-[0.4em] rounded-[2.5rem] hover:bg-white/20 transition-all border-white/20 shadow-glass">
-                        Archive Settings
-                    </Button>
-                </div>
-            </Card>
         </div>
     );
 }

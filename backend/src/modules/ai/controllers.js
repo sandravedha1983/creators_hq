@@ -1,16 +1,33 @@
 const OpenAI = require('openai');
 const AiGeneration = require('./models');
 const User = require('../auth/models');
+const { supabase } = require('../../config/supabase');
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const FREE_MONTHLY_LIMIT = 5;
 
+const isSupabaseActive = () => {
+  return supabase && process.env.SUPABASE_URL && !process.env.SUPABASE_URL.includes('dummy-creatorshq');
+};
+
 // ─── Helper: count this month's generations for a user ───────────────────────
 async function getMonthlyUsage(userId) {
   const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  return AiGeneration.countDocuments({ user_id: userId, createdAt: { $gte: start } });
+  const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+  if (isSupabaseActive()) {
+    const { count, error } = await supabase
+      .from('ai_generations')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .gte('created_at', start);
+
+    if (!error) return count || 0;
+  }
+
+  // MongoDB Fallback
+  return AiGeneration.countDocuments({ user_id: userId, createdAt: { $gte: new Date(start) } });
 }
 
 // ─── Helper: generate via OpenAI with fallback ────────────────────────────────
@@ -33,9 +50,17 @@ async function callOpenAI(systemPrompt, userPrompt, model = 'gpt-4o-mini') {
 // ─── GET /api/ai/usage — return current usage count ──────────────────────────
 const getUsage = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id).select('plan');
+    let isPro = req.user.plan === 'pro';
+
+    if (isSupabaseActive()) {
+      const { data: prof } = await supabase.from('profiles').select('plan').eq('id', req.user.id).single();
+      if (prof) isPro = prof.plan === 'pro';
+    } else {
+      const user = await User.findById(req.user.id).select('plan');
+      if (user) isPro = user.plan === 'pro';
+    }
+
     const used = await getMonthlyUsage(req.user.id);
-    const isPro = user?.plan === 'pro';
     res.json({
       success: true,
       data: {
@@ -56,9 +81,19 @@ const generateContent = async (req, res, next) => {
     const { prompt, type } = req.body;
     if (!prompt) return res.status(400).json({ success: false, message: 'prompt is required' });
 
+    // Normalize type enum: 'ideas' -> 'idea'
+    const normalizedType = type === 'ideas' ? 'idea' : (type || 'idea');
+
     // Usage limit check
-    const user = await User.findById(req.user.id).select('plan');
-    const isPro = user?.plan === 'pro';
+    let isPro = req.user.plan === 'pro';
+    if (isSupabaseActive()) {
+      const { data: prof } = await supabase.from('profiles').select('plan').eq('id', req.user.id).single();
+      if (prof) isPro = prof.plan === 'pro';
+    } else {
+      const user = await User.findById(req.user.id).select('plan');
+      if (user) isPro = user.plan === 'pro';
+    }
+
     if (!isPro) {
       const used = await getMonthlyUsage(req.user.id);
       if (used >= FREE_MONTHLY_LIMIT) {
@@ -78,6 +113,7 @@ const generateContent = async (req, res, next) => {
       bio: `Content creator | ${prompt} enthusiast | Helping you grow smarter 🚀 | DMs open for collabs`,
       pitch: `Hi! I'm a content creator specialising in ${prompt}. I'd love to collaborate on a campaign that resonates authentically with my audience of engaged followers.`,
       hashtags: `#${prompt.replace(/\s+/g, '')} #ContentCreator #CreatorsHQ #Growth #ViralContent #SocialMedia`,
+      idea: `Content ideas for "${prompt}": 1) Behind-the-scenes reel 2) Tutorial breakdown 3) Day-in-the-life vlog 4) Trending audio twist 5) Creator collab`,
       ideas: `Content ideas for "${prompt}": 1) Behind-the-scenes reel 2) Tutorial breakdown 3) Day-in-the-life vlog 4) Trending audio twist 5) Creator collab`,
       script: `Hook: Start with "Did you know that ${prompt}..."\nBody: Share 3 key points with quick cuts.\nCTA: "Follow for more tips like this!"`,
       email: `Subject: Let's Create Something Amazing Together\n\nHi [Brand Name],\n\nI'm a content creator focused on ${prompt}. I believe there's a natural fit between your brand and my audience. Would love to explore a collaboration.\n\nBest,\n[Your Name]`,
@@ -90,18 +126,29 @@ const generateContent = async (req, res, next) => {
       output = result.output;
       tokens = result.tokens;
     } catch {
-      output = FALLBACKS[type] || FALLBACKS.default;
+      output = FALLBACKS[normalizedType] || FALLBACKS[type] || FALLBACKS.default;
       tokens = 0;
     }
 
     // Save to DB for history and usage tracking
-    await AiGeneration.create({
-      user_id: req.user.id,
-      type: type || 'default',
-      prompt,
-      output,
-      tokens_used: tokens
-    });
+    if (isSupabaseActive()) {
+      await supabase.from('ai_generations').insert({
+        user_id: req.user.id,
+        type: normalizedType,
+        prompt,
+        output,
+        tokens_used: tokens,
+        model: 'gpt-4o-mini'
+      });
+    } else {
+      await AiGeneration.create({
+        user_id: req.user.id,
+        type: normalizedType,
+        prompt,
+        output,
+        tokens_used: tokens
+      });
+    }
 
     res.json({ success: true, data: output });
   } catch (err) {
@@ -165,6 +212,19 @@ const chat = async (req, res, next) => {
 // ─── GET /api/ai/history — user's generation history ─────────────────────────
 const getHistory = async (req, res, next) => {
   try {
+    if (isSupabaseActive()) {
+      const { data: history, error } = await supabase
+        .from('ai_generations')
+        .select('*')
+        .eq('user_id', req.user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+      return res.json({ success: true, data: history || [] });
+    }
+
+    // MongoDB Fallback
     const history = await AiGeneration.find({ user_id: req.user.id })
       .sort({ createdAt: -1 })
       .limit(50);

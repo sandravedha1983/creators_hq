@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Sidebar } from "@/components/layout/Sidebar"
 import { Navbar } from "@/components/layout/Navbar"
 import { motion } from "framer-motion"
-import { useLocation } from "react-router-dom"
 import { cn } from "@/utils/cn"
 import { AiAssistant } from "@/components/ai/AiAssistant"
 
@@ -12,40 +11,12 @@ interface DashboardLayoutProps {
     children: React.ReactNode
 }
 
-const getBgImage = (pathname: string) => {
-    const basePath = '/backgrounds/';
-    if (pathname.includes('dashboard')) return `${basePath}dashboard_bg.png`;
-    if (pathname.includes('profile')) return `${basePath}profile_bg.png`;
-    if (pathname.includes('billing')) return `${basePath}payment_bg.png`;
-    if (pathname.includes('ai-studio')) return `${basePath}ai_bg.png`;
-    if (pathname.includes('analytics')) return `${basePath}analytics_bg.png`;
-    if (pathname.includes('integrations')) return `${basePath}integrations_bg.png`;
-    if (pathname.includes('marketplace')) return `${basePath}marketplace_bg.png`;
-    if (pathname.includes('settings')) return `${basePath}settings_bg.png`;
-    return `${basePath}dashboard_bg.png`; 
-}
-
 export function DashboardLayout({ children }: DashboardLayoutProps) {
     const { user } = useAuth();
-    const { pathname } = useLocation();
-    const bgImage = getBgImage(pathname);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     return (
-        <div className="min-h-screen text-heaven-text relative font-sans dashboard-layout overflow-x-hidden">
-            {/* Signature Background Image - Full Resolution Restoration */}
-            <div 
-                key={bgImage}
-                className="fixed inset-0 bg-cover bg-center pointer-events-none transition-all duration-[1000ms]"
-                style={{ 
-                    backgroundImage: `url(${bgImage})`,
-                    zIndex: 0 
-                }}
-            />
-
-            {/* Design System Overlay (60% Contrast Protection) */}
-            <div className="fixed inset-0 bg-black/60 pointer-events-none" style={{ zIndex: 1 }} />
-
+        <div className="min-h-screen text-heaven-text relative font-sans dashboard-layout overflow-x-hidden bg-dark">
             {/* Sidebar & Base Container */}
             <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
             

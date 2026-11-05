@@ -7,6 +7,7 @@ import { LandingPage } from './pages/LandingPage'
 import { Toaster } from 'react-hot-toast';
 import { Suspense, lazy } from 'react';
 import { Spinner } from './components/ui/Spinner';
+import { MEMBERSHIP_UI_ENABLED } from './config/planVisibility';
 
 const Login = lazy(() => import('./pages/auth/Login'));
 const Signup = lazy(() => import('./pages/auth/Signup'));
@@ -36,6 +37,10 @@ const Campaigns = lazy(() => import('./pages/Campaigns'));
 const Creators = lazy(() => import('./pages/Creators'));
 const Users = lazy(() => import('./pages/Users'));
 const Reports = lazy(() => import('./pages/Reports'));
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+const TermsOfService = lazy(() => import('./pages/TermsOfService'));
+const Waitlist = lazy(() => import('./pages/Waitlist'));
+const AdminWaitlist = lazy(() => import('./pages/AdminWaitlist'));
 
 import { motion } from "framer-motion";
 
@@ -68,11 +73,16 @@ function App() {
                         <Route path="/forgot-password" element={<ForgotPassword />} />
                         <Route path="/reset-password" element={<ResetPassword />} />
                         <Route path="/dashboard-redirect" element={<DashboardRedirect />} />
+                        <Route path="/privacy" element={<PrivacyPolicy />} />
+                        <Route path="/terms" element={<TermsOfService />} />
+                        <Route path="/waitlist" element={<Waitlist />} />
+                        <Route path="/waitlist/accept" element={<Waitlist />} />
                         <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout><Dashboard /></DashboardLayout></ProtectedRoute>} />
 
                         {/* Admin Routes — Separated under /admin/ */}
                         <Route path="/admin/login" element={<AdminLogin />} />
                         <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><AdminDashboard /></DashboardLayout></ProtectedRoute>} />
+                        <Route path="/admin/waitlist" element={<ProtectedRoute allowedRoles={['admin']}><DashboardLayout><AdminWaitlist /></DashboardLayout></ProtectedRoute>} />
 
                         {/* Legacy admin redirects */}
                         <Route path="/admin-login" element={<Navigate to="/admin/login" replace />} />
@@ -101,7 +111,7 @@ function App() {
                         {/* Shared Functional Hubs */}
                         <Route path="/analytics" element={<ProtectedRoute><DashboardLayout><Analytics /></DashboardLayout></ProtectedRoute>} />
                         <Route path="/automation" element={<ProtectedRoute><DashboardLayout><Automation /></DashboardLayout></ProtectedRoute>} />
-                        <Route path="/billing" element={<ProtectedRoute><DashboardLayout><Billing /></DashboardLayout></ProtectedRoute>} />
+                        <Route path="/billing" element={MEMBERSHIP_UI_ENABLED ? <ProtectedRoute><DashboardLayout><Billing /></DashboardLayout></ProtectedRoute> : <Navigate to="/" replace />} />
                         <Route path="/messages" element={<ProtectedRoute><DashboardLayout><Messages /></DashboardLayout></ProtectedRoute>} />
                         <Route path="/notifications" element={<ProtectedRoute><DashboardLayout><Notifications /></DashboardLayout></ProtectedRoute>} />
                         <Route path="/integrations" element={<ProtectedRoute><DashboardLayout><Integrations /></DashboardLayout></ProtectedRoute>} />

@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Layers, User, Briefcase, Shield, Zap, Shield as ShieldIcon, ArrowRight, Lock } from 'lucide-react';
 import { cn } from '@/utils/cn';
-import loginVideo from "@/assets/istockphoto-2189725457-640_adpp_is.mp4";
 
 export default function Signup() {
     const [email, setEmail] = useState('');
@@ -17,7 +16,7 @@ export default function Signup() {
     const [role, setRole] = useState<UserRole>('creator');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const { signup } = useAuth();
+    const { signup, signInWithOAuth } = useAuth();
     const navigate = useNavigate();
 
     const validateEmail = (email: string) => {
@@ -53,9 +52,17 @@ export default function Signup() {
         }
     };
 
-    const handleSocialLogin = (service: string) => {
-        const baseURL = import.meta.env.VITE_API_URL || "";
-        window.location.href = `${baseURL}/api/auth/${service.toLowerCase()}`;
+    const handleSocialLogin = async (service: string) => {
+        try {
+            if (service.toLowerCase() === 'google' || service.toLowerCase() === 'linkedin') {
+                await signInWithOAuth(service.toLowerCase() as 'google' | 'linkedin');
+            } else {
+                const baseURL = import.meta.env.VITE_API_URL || "";
+                window.location.href = `${baseURL}/api/auth/${service.toLowerCase()}`;
+            }
+        } catch (err: any) {
+            toast.error(`Social signup failed: ${err.message || 'Please use email registration'}`);
+        }
     };
 
     const roles: { id: UserRole; label: string; icon: any; desc: string }[] = [
@@ -65,24 +72,8 @@ export default function Signup() {
 
     return (
         <div className="min-h-screen bg-dark flex items-center justify-center p-6 relative overflow-hidden font-sans">
-            {/* Background Video */}
-            <video
-                autoPlay
-                loop
-                muted
-                playsInline
-                className="absolute inset-0 w-full h-full object-cover z-0 opacity-30"
-            >
-                <source src={loginVideo} type="video/mp4" />
-            </video>
-
-            {/* Background Effects: Heavenly Glows */}
-            <div className="absolute inset-0 bg-gradient-to-b from-dark via-transparent to-dark z-0 opacity-80" />
-            <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-primary/10 rounded-full blur-[140px] animate-pulse pointer-events-none" />
-            <div className="absolute bottom-1/4 left-1/4 w-96 h-96 bg-secondary/10 rounded-full blur-[140px] animate-pulse delay-700 pointer-events-none" />
-
             <Card className="w-full max-w-2xl p-6 sm:p-16 bg-[#050810]/90 border-white/[0.08] backdrop-blur-3xl rounded-[2.5rem] sm:rounded-[4rem] shadow-glass relative z-10 overflow-hidden group hover:border-white/[0.12] transition-all duration-700">
-                <div className="absolute top-0 inset-x-0 h-1.5 bg-button-gradient shadow-soft-glow" />
+                <div className="absolute top-0 inset-x-0 h-1.5 bg-primary" />
 
                 <div className="flex flex-col items-center mb-14 relative z-10 text-center">
                     <Logo size="lg" className="mb-10 group-hover:rotate-6 transition-all duration-700" />

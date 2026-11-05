@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { getProfile } from "@/services/authService";
 import { Spinner } from "@/components/ui/Spinner";
 
@@ -11,26 +12,56 @@ export default function DashboardRedirect() {
 
   useEffect(() => {
     let active = true;
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
-
-    if (!token) {
-      navigate("/login", { replace: true });
-      return;
-    }
 
     const initSession = async () => {
       try {
-        // 1. Store the token first so the API interceptor can use it
+        // 1. Check for Supabase session first
+        if (isSupabaseConfigured()) {
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          if (session?.user && !sessionError) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', session.user.id)
+              .single();
+            const role = profile?.role === 'admin' || session.user.app_metadata?.role === 'admin'
+              ? 'admin'
+              : profile?.role === 'brand' ? 'brand' : 'creator';
+            const roleRedirects: Record<string, string> = {
+              creator: "/creator-dashboard",
+              brand: "/brand-dashboard",
+              admin: "/admin/dashboard",
+            };
+            navigate(roleRedirects[role] || "/dashboard", { replace: true });
+            return;
+          }
+        }
+
+        // 2. Check for URL query param ?token=
+        const params = new URLSearchParams(window.location.search);
+        let token = params.get("token");
+
+        // 3. Check for URL hash #access_token=
+        if (!token && window.location.hash) {
+          const hashParams = new URLSearchParams(window.location.hash.substring(1));
+          token = hashParams.get("access_token");
+        }
+
+        if (!token) {
+          navigate("/login", { replace: true });
+          return;
+        }
+
+        // Store token so API client uses it
         localStorage.setItem("token", token);
 
-        // 2. Fetch the full user profile from backend
+        // Fetch user profile from backend
         const response = await getProfile();
         if (!active) return;
         const userData = response.data;
 
-        // 3. Initialize auth context with token + user data
         await tokenLogin(token, {
+          id: userData.id || userData._id,
           email: userData.email,
           name: userData.name,
           role: userData.role,
@@ -38,21 +69,20 @@ export default function DashboardRedirect() {
           socials: userData.socials,
         });
 
-        // 4. Navigate based on role
         const roleRedirects: Record<string, string> = {
           creator: "/creator-dashboard",
           brand: "/brand-dashboard",
-          admin: "/admin-dashboard",
+          admin: "/admin/dashboard",
         };
         navigate(roleRedirects[userData.role] || "/dashboard", { replace: true });
       } catch (err) {
         if (!active) return;
-        console.error("[AUTH] OAuth session init failed:", err);
+        console.error("[AUTH] Session redirect failed:", err);
         localStorage.removeItem("token");
-        setError("Authentication failed. Please try again.");
+        setError("Authentication failed. Redirecting to login...");
         setTimeout(() => {
           navigate("/login", { replace: true });
-        }, 2000);
+        }, 1500);
       }
     };
 
