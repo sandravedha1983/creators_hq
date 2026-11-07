@@ -379,22 +379,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, [addUser, syncSupabaseProfile]);
 
     // 5. Social OAuth Login
-    const signInWithOAuth = useCallback(async (provider: 'google' | 'linkedin') => {
-        if (isSupabaseConfigured()) {
-            const redirectUrl = `${window.location.origin}/dashboard-redirect`;
-            const { error } = await supabase.auth.signInWithOAuth({
-                provider: provider as any,
-                options: {
-                    redirectTo: redirectUrl
-                }
-            });
-            if (error) throw error;
-            return;
+      
+  // 5. Social OAuth Login
+    const signInWithOAuth = useCallback(async (provider: 'google' | 'linkedin'): Promise<void> => {
+      if (isSupabaseConfigured()) {
+        const redirectUrl = `${window.location.origin}/dashboard-redirect`;
+
+        const supabaseProvider =
+          provider === 'linkedin' ? 'linkedin_oidc' : 'google';
+
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: supabaseProvider as any,
+          options: {
+            redirectTo: redirectUrl,
+          },
+        });
+
+        if (error) {
+          console.error('[SOCIAL LOGIN ERROR]', error);
+          throw error;
         }
 
-        // Fallback
-        const baseURL = import.meta.env.VITE_API_URL || "";
-        window.location.href = `${baseURL}/api/auth/${provider}`;
+        return;
+      }
+
+      // Legacy backend fallback
+      const baseURL = import.meta.env.VITE_API_URL || '';
+      window.location.href = `${baseURL}/api/auth/${provider}`;
     }, []);
 
     // 6. Verify OTP
