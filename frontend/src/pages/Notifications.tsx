@@ -28,21 +28,23 @@ export default function Notifications() {
     const [liveNotifications, setLiveNotifications] = useState<NotificationItem[]>([]);
     const [unreadCount, setUnreadCount] = useState<number>(0);
     const [filter, setFilter] = useState<'all' | 'collaboration' | 'campaign' | 'system'>('all');
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
 
     const loadNotifications = useCallback(async () => {
         setLoading(true);
         try {
             const res = await API.get('/api/notifications');
-            if (res.data?.success) {
-                const notifications = res.data.data || [];
-                setLiveNotifications(notifications);
-                setUnreadCount(notifications.filter((n: NotificationItem) =>
-                    (MEMBERSHIP_UI_ENABLED || n.type !== 'billing') && !n.read
-                ).length);
-            }
-        } catch {
-            // Fallback to local activities if network error
+            if (!res.data?.success) throw new Error('Notification service returned an unsuccessful response.');
+            const notifications = res.data.data || [];
+            setLiveNotifications(notifications);
+            setUnreadCount(notifications.filter((n: NotificationItem) =>
+                (MEMBERSHIP_UI_ENABLED || n.type !== 'billing') && !n.read
+            ).length);
+            setLoadError(false);
+        } catch (error) {
+            console.error('[Notifications] Server notifications unavailable', error);
+            setLoadError(true);
             const notifications = activities.map(a => ({
                 id: a.id,
                 title: a.title ?? a.message,
@@ -71,9 +73,9 @@ export default function Notifications() {
             setUnreadCount(0);
             markActivitiesRead();
             toast.success('All notifications marked as read');
-        } catch {
-            markActivitiesRead();
-            toast.success('All notifications marked as read');
+        } catch (error) {
+            console.error('[Notifications] Failed to mark all as read', error);
+            toast.error('Unable to update notifications. Please try again.');
         }
     };
 
@@ -82,12 +84,13 @@ export default function Notifications() {
             await API.patch(`/api/notifications/${id}/read`);
             setLiveNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
             setUnreadCount(c => Math.max(0, c - 1));
-        } catch {
-            // Handled
+        } catch (error) {
+            console.error('[Notifications] Failed to mark notification as read', error);
+            toast.error('Unable to update notification. Please try again.');
         }
     };
 
-    const displayList = liveNotifications.length > 0
+    const displayList = !loadError
         ? liveNotifications.filter(n =>
             (MEMBERSHIP_UI_ENABLED || n.type !== 'billing') && (filter === 'all' || n.type === filter)
         )
@@ -137,7 +140,7 @@ export default function Notifications() {
                     </h1>
                     <p className="text-heaven-muted text-[10px] font-bold mt-6 uppercase tracking-[0.4em] flex items-center gap-4 opacity-60">
                         <ActivityIcon className="w-4 h-4 text-primary animate-pulse" />
-                        Live Event Monitor Active
+                        {loading ? 'Loading notification history' : loadError ? 'Showing local activity · server unavailable' : 'Notification history · refreshed on page load'}
                     </p>
                 </div>
                 <Button

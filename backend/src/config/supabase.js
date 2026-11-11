@@ -41,4 +41,20 @@ const createUserClient = (accessToken) => {
   });
 };
 
-module.exports = { supabase, createUserClient };
+const createPublicClient = () => {
+  if (!supabaseUrl) {
+    throw new Error('SUPABASE_URL is required to create a public Supabase client.');
+  }
+  if (!supabaseAnonKey) {
+    throw new Error('SUPABASE_ANON_KEY is required to create a public Supabase client.');
+  }
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false
+    }
+  });
+};
+
+module.exports = { supabase, createUserClient, createPublicClient };

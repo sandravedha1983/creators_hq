@@ -4,13 +4,14 @@ import { getCampaigns as fetchCampaigns, getMyCampaigns, createCampaign as apiCr
 import { getLeads as fetchLeads, createLead as apiCreateLead, updateLead as apiUpdateLead, deleteLead as apiDeleteLead } from '@/services/leadService';
 import type { Campaign as APICampaign } from '@/services/campaignService';
 import type { Lead as APILead } from '@/services/leadService';
+import { supabase } from '@/lib/supabase';
 
 // ─── Legacy local types (kept for backwards compat with non-migrated pages) ───
 interface ContentItem {
   id: string; title: string; platform: string; type: string; status: string; date: string; image?: string;
 }
 interface AutomationRule { id: string; condition: string; action: string; }
-interface Integration { id: string; name: string; category: string; connected: boolean; icon: string; }
+interface Integration { id: string; name: string; category: string; connected: boolean; verified: boolean; icon: string; }
 interface TeamMember { id: string; name: string; email: string; role: string; status: 'Active' | 'Invited'; }
 interface Activity {
   id: string; type: 'system' | 'campaign' | 'message' | 'billing' | 'integration' | 'team' | 'collaboration'; title?: string; message: string; timestamp: string; read: boolean;
@@ -36,6 +37,8 @@ interface AppContextType {
   users: any[];
   activities: Activity[];
   integrations: Integration[];
+  integrationsLoading: boolean;
+  integrationsError: string | null;
   team: TeamMember[];
   connections: { instagram: string; youtube: string; tiktok: string; linkedin: string; slack: string };
   isAnyConnected: boolean;
@@ -44,7 +47,8 @@ interface AppContextType {
   addSubscription: (sub: any) => void;
   addActivity: (activity: Omit<Activity, 'id' | 'timestamp' | 'read'>) => void;
   markActivitiesRead: () => void;
-  toggleIntegration: (id: string) => void;
+  toggleIntegration: (id: string) => Promise<void>;
+  refreshIntegrations: () => Promise<void>;
   inviteTeamMember: (email: string, role: string) => void;
   deleteUser: (email: string) => void;
   updateUser: (email: string, updates: any) => void;
@@ -54,11 +58,11 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const INITIAL_INTEGRATIONS: Integration[] = [
-  { id: '1', name: 'Instagram', category: 'Social', connected: false, icon: 'Instagram' },
-  { id: '2', name: 'YouTube', category: 'Social', connected: false, icon: 'Youtube' },
-  { id: '3', name: 'TikTok', category: 'Social', connected: false, icon: 'Music2' },
-  { id: '4', name: 'LinkedIn', category: 'Professional', connected: false, icon: 'Linkedin' },
-  { id: '5', name: 'Slack', category: 'Communication', connected: false, icon: 'Slack' },
+  { id: '1', name: 'Instagram', category: 'Social', connected: false, verified: false, icon: 'Instagram' },
+  { id: '2', name: 'YouTube', category: 'Social', connected: false, verified: false, icon: 'Youtube' },
+  { id: '3', name: 'TikTok', category: 'Social', connected: false, verified: false, icon: 'Music2' },
+  { id: '4', name: 'LinkedIn', category: 'Professional', connected: false, verified: false, icon: 'Linkedin' },
+  { id: '5', name: 'Slack', category: 'Communication', connected: false, verified: false, icon: 'Slack' },
 ];
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -84,12 +88,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activities, setActivities] = useState<Activity[]>(() => {
     try { return JSON.parse(localStorage.getItem('creatorshq_activities') || '[]'); } catch { return []; }
   });
-  const [integrations, setIntegrations] = useState<Integration[]>(() => {
-    try {
-      const stored = localStorage.getItem('creatorshq_integrations');
-      return stored ? JSON.parse(stored) : INITIAL_INTEGRATIONS;
-    } catch { return INITIAL_INTEGRATIONS; }
-  });
+  const [integrations, setIntegrations] = useState<Integration[]>(INITIAL_INTEGRATIONS);
+  const [integrationsLoading, setIntegrationsLoading] = useState(true);
+  const [integrationsError, setIntegrationsError] = useState<string | null>(null);
   const [team, setTeam] = useState<TeamMember[]>(() => {
     try { return JSON.parse(localStorage.getItem('creatorshq_team') || '[]'); } catch { return []; }
   });
@@ -100,7 +101,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => { localStorage.setItem('creatorshq_subscriptions', JSON.stringify(subscriptions)); }, [subscriptions]);
   useEffect(() => { localStorage.setItem('creatorshq_users', JSON.stringify(users)); }, [users]);
   useEffect(() => { localStorage.setItem('creatorshq_activities', JSON.stringify(activities)); }, [activities]);
-  useEffect(() => { localStorage.setItem('creatorshq_integrations', JSON.stringify(integrations)); }, [integrations]);
   useEffect(() => { localStorage.setItem('creatorshq_team', JSON.stringify(team)); }, [team]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
@@ -115,12 +115,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // ── Load campaigns from API ───────────────────────────────────────────────
   const refreshCampaigns = useCallback(async () => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
     setCampaignsLoading(true);
     try {
-      // Brands see their own; everyone else sees open marketplace
-      const role = localStorage.getItem('role');
+      const { data: { session } } = await supabase.auth.getSession();
+      let role: string | null = null;
+      if (session) {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .maybeSingle();
+        if (error) throw error;
+        role = profile?.role ?? null;
+      }
       const res = role === 'brand' ? await getMyCampaigns() : await fetchCampaigns();
       setCampaigns(res.data || []);
     } catch (err) {
@@ -132,8 +139,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // ── Load leads from API ───────────────────────────────────────────────────
   const refreshLeads = useCallback(async () => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      setLeads([]);
+      return;
+    }
     setLeadsLoading(true);
     try {
       const res = await fetchLeads();
@@ -150,26 +160,76 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     refreshLeads();
   }, [refreshCampaigns, refreshLeads]);
 
-  // Sync integrations from backend on mount
-  useEffect(() => {
-    const syncIntegrations = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-      try {
-        const res = await API.get('/api/integrations');
-        if (res.data.success) {
-          const connectedMap = res.data.data;
-          setIntegrations(prev => prev.map(i => ({
-            ...i,
-            connected: !!connectedMap[i.name.toLowerCase()]
-          })));
-        }
-      } catch (err) {
-        console.error('[AppContext] Failed to sync integrations', err);
-      }
+  const refreshIntegrations = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      setIntegrations(INITIAL_INTEGRATIONS);
+      setIntegrationsError(null);
+      setIntegrationsLoading(false);
+      return;
+    }
+    const userId = session.user.id;
+    const stillCurrentUser = async () => {
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      return currentSession?.user.id === userId;
     };
-    syncIntegrations();
+
+    setIntegrationsLoading(true);
+    try {
+      const res = await API.get('/api/integrations');
+      if (!await stillCurrentUser()) return;
+      if (!res.data?.success || !res.data?.data) {
+        throw new Error(res.data?.message || 'Integration status could not be loaded.');
+      }
+
+      const statuses = res.data.data;
+      setIntegrations(prev => prev.map(integration => {
+        const platform = integration.name.toLowerCase();
+        return {
+          ...integration,
+          connected: statuses[platform] === true,
+          verified: statuses.profileVerified?.[platform] === true
+        };
+      }));
+      setIntegrationsError(null);
+    } catch (error) {
+      if (await stillCurrentUser()) {
+        setIntegrations(prev => prev.map(integration => ({
+          ...integration,
+          connected: false,
+          verified: false
+        })));
+        setIntegrationsError(error instanceof Error ? error.message : 'Integration status could not be loaded.');
+      }
+      throw error;
+    } finally {
+      if (await stillCurrentUser()) setIntegrationsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    const syncIntegrations = () => { void refreshIntegrations().catch(() => undefined); };
+    const syncAuthenticatedData = () => {
+      void refreshCampaigns();
+      void refreshLeads();
+      syncIntegrations();
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') syncIntegrations();
+    };
+
+    syncIntegrations();
+    window.addEventListener('auth:changed', syncAuthenticatedData);
+    window.addEventListener('auth:expired', syncIntegrations);
+    window.addEventListener('focus', syncIntegrations);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('auth:changed', syncAuthenticatedData);
+      window.removeEventListener('auth:expired', syncIntegrations);
+      window.removeEventListener('focus', syncIntegrations);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [refreshIntegrations]);
 
   // ── Campaign actions ──────────────────────────────────────────────────────
   const addCampaign = async (campaign: { title: string; description: string; budget: string; niche?: string; image?: string }) => {
@@ -219,21 +279,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const markActivitiesRead = () => setActivities(prev => prev.map(a => ({ ...a, read: true })));
   const toggleIntegration = async (id: string) => {
     const integration = integrations.find(i => i.id === id);
-    if (!integration) return;
-    try {
-      const res = await API.post('/api/integrations/connect', { platform: integration.name.toLowerCase() });
-      if (res.data.success) {
-        setIntegrations(prev => prev.map(i => {
-          if (i.id !== id) return i;
-          const newState = !i.connected;
-          addActivity({ type: 'integration', message: `${i.name} ${newState ? 'connected' : 'disconnected'}` });
-          return { ...i, connected: newState };
-        }));
-      }
-    } catch (err) {
-      console.error('[AppContext] Integration toggle failed', err);
-      throw err;
+    if (!integration) throw new Error('Integration not found.');
+
+    const res = await API.post('/api/integrations/connect', { platform: integration.name.toLowerCase() });
+    if (!res.data?.success) {
+      throw new Error(res.data?.message || `Unable to connect ${integration.name}.`);
     }
+    await refreshIntegrations();
+    addActivity({ type: 'integration', message: `${integration.name} connection updated` });
   };
   const inviteTeamMember = (email: string, role: string) => {
     setTeam(prev => [...prev, { id: Math.random().toString(36).substr(2, 9), name: email.split('@')[0], email, role, status: 'Invited' }]);
@@ -246,10 +299,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addCampaign, applyToCampaign,
       addLead, updateLead, removeLead,
       refreshCampaigns, refreshLeads,
-      content, rules, subscriptions, users, activities, integrations, team,
+      content, rules, subscriptions, users, activities, integrations, integrationsLoading, integrationsError, team,
       connections, isAnyConnected,
       addContent, addRule, addSubscription, addActivity, markActivitiesRead,
-      toggleIntegration, inviteTeamMember,
+      toggleIntegration, refreshIntegrations, inviteTeamMember,
       deleteUser: (email) => setUsers(prev => prev.filter(u => u.email !== email)),
       updateUser: (email, updates) => setUsers(prev => prev.map(u => u.email === email ? { ...u, ...updates } : u)),
       addUser: (user) => setUsers(prev => { if (prev.find(u => u.email === user.email)) return prev; return [...prev, user]; }),

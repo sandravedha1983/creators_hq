@@ -2,12 +2,13 @@ const errorHandler = (err, req, res, next) => {
   console.error("DEBUG [Backend Error]:", err);
   const status = err.statusCode || 500;
   const message = err.message || 'Internal Server Error';
+  const validationErrors = err.issues || err.errors;
   
   const response = {
     success: false,
     message: message,
     error: err.toString(),
-    details: err.errors // For Zod validation errors
+    details: validationErrors
   };
 
   // Only include stack trace in development — security risk in production

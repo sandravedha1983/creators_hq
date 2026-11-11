@@ -2,7 +2,7 @@ const dashboardModel = require('./models');
 
 const getBrandDashboard = async (req, res, next) => {
   try {
-    const stats = await dashboardModel.getBrandStats(req.user.id);
+    const stats = await dashboardModel.getBrandStats(req.user.id, req.supabase);
     res.json({ success: true, data: stats });
   } catch (error) {
     next(error);
@@ -11,7 +11,7 @@ const getBrandDashboard = async (req, res, next) => {
 
 const getCreatorDashboard = async (req, res, next) => {
   try {
-    const stats = await dashboardModel.getCreatorStats(req.user.id);
+    const stats = await dashboardModel.getCreatorStats(req.user.id, req.supabase);
     res.json({ success: true, data: stats });
   } catch (error) {
     next(error);

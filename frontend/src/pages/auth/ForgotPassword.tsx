@@ -5,19 +5,20 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Mail, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import API from '@/services/api';
+import { useAuth } from '@/context/AuthContext';
 
 export default function ForgotPassword() {
     const [email, setEmail] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [sent, setSent] = useState(false);
+    const { resetPassword } = useAuth();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (isLoading) return;
         setIsLoading(true);
         try {
-            await API.post('/api/auth/forgot-password', { email });
+            await resetPassword(email);
             setSent(true);
             toast.success('If an account exists, a reset link has been sent.');
         } catch (err: any) {

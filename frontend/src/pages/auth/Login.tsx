@@ -21,8 +21,7 @@ export default function Login() {
         const error = searchParams.get('error');
         if (error) {
             const errorMessages: Record<string, string> = {
-                google_not_configured: 'Google Sign In is temporarily unavailable. Please use email login.',
-                linkedin_not_configured: 'LinkedIn Sign In is temporarily unavailable. Please use email login.',
+                access_denied: 'Social sign-in was cancelled. Please try again or use email login.',
                 oauth_failed: 'Social sign-in failed. Please try again or use email login.',
             };
             toast.error(errorMessages[error] || 'Sign-in error. Please try again.');
@@ -87,14 +86,9 @@ export default function Login() {
         }
     };
 
-    const handleSocialLogin = async (service: string) => {
+    const handleSocialLogin = async (service: 'google' | 'linkedin') => {
         try {
-            if (service.toLowerCase() === 'google' || service.toLowerCase() === 'linkedin') {
-                await signInWithOAuth(service.toLowerCase() as 'google' | 'linkedin');
-            } else {
-                const baseURL = import.meta.env.VITE_API_URL || "";
-                window.location.href = `${baseURL}/api/auth/${service.toLowerCase()}`;
-            }
+            await signInWithOAuth(service);
         } catch (err: any) {
             toast.error(`Social login failed: ${err.message || 'Please use email login'}`);
         }
@@ -170,7 +164,7 @@ export default function Login() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8">
                     <button
-                        onClick={() => handleSocialLogin('Google')}
+                        onClick={() => handleSocialLogin('google')}
                         disabled={isLoading}
                         className="h-16 sm:h-18 rounded-[1.5rem] sm:rounded-[1.75rem] font-bold text-[9px] uppercase tracking-widest bg-white/[0.04] hover:bg-white/[0.06] flex items-center justify-center gap-4 border border-white/[0.08] text-heaven-muted hover:text-heaven-text transition-all shadow-glass disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -183,7 +177,7 @@ export default function Login() {
                         Google
                     </button>
                     <button
-                        onClick={() => handleSocialLogin('LinkedIn')}
+                        onClick={() => handleSocialLogin('linkedin')}
                         disabled={isLoading}
                         className="h-16 sm:h-18 rounded-[1.5rem] sm:rounded-[1.75rem] font-bold text-[9px] uppercase tracking-widest bg-white/[0.04] hover:bg-white/[0.06] flex items-center justify-center gap-4 border border-white/[0.08] text-heaven-muted hover:text-heaven-text transition-all shadow-glass disabled:opacity-50 disabled:cursor-not-allowed"
                     >

@@ -1,7 +1,32 @@
-const User = require('../auth/models');
 const { extractUsername, profileUrl, fetchHtml } = require('../../utils/social');
 const cheerio = require('cheerio');
 const axios = require('axios');
+
+const SOCIAL_PLATFORMS = ['instagram', 'twitter', 'linkedin', 'youtube'];
+const CONNECTABLE_PLATFORMS = [...SOCIAL_PLATFORMS, 'slack', 'tiktok'];
+
+const getIntegrationUser = async (userId, client) => {
+  const { data, error } = await client
+    .from('profiles')
+    .select('id, integrations, socials')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+};
+
+const saveIntegrationUser = async (userId, user, client) => {
+  const { error } = await client
+    .from('profiles')
+    .update({ socials: user.socials, integrations: user.integrations })
+    .eq('id', userId);
+  if (error) throw error;
+};
+
+const asObject = (value) => {
+  if (value instanceof Map) return Object.fromEntries(value);
+  return value && typeof value === 'object' ? { ...value } : {};
+};
 
 /**
  * POST /api/integrations/link
@@ -11,7 +36,7 @@ const linkSocial = async (req, res, next) => {
   try {
     const { platform, url } = req.body;
 
-    if (!platform || !url) {
+    if (!SOCIAL_PLATFORMS.includes(platform) || !url) {
       return res.status(400).json({ success: false, message: "platform and url required" });
     }
 
@@ -22,11 +47,10 @@ const linkSocial = async (req, res, next) => {
 
     const code = "CRHQ_" + Math.random().toString(36).slice(2, 7).toUpperCase();
 
-    const user = await User.findById(req.user.id);
+    const user = await getIntegrationUser(req.user.id, req.supabase);
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-    // Initialize socials map if missing (though schema has it)
-    if (!user.socials) user.socials = {};
+    user.socials = asObject(user.socials);
 
     user.socials[platform] = {
       url,
@@ -35,9 +59,7 @@ const linkSocial = async (req, res, next) => {
       verified: false // ALWAYS false initially
     };
 
-    // Mark as modified for Map/Nested objects if necessary (Mongoose requirement)
-    user.markModified(`socials.${platform}`);
-    await user.save();
+    await saveIntegrationUser(req.user.id, user, req.supabase);
 
     return res.json({
       success: true,
@@ -58,7 +80,7 @@ const verifySocial = async (req, res, next) => {
   try {
     const { platform, url, code } = req.body;
 
-    if (!platform || !url || !code) {
+    if (!SOCIAL_PLATFORMS.includes(platform) || !url || typeof code !== 'string' || !code) {
       return res.status(400).json({ success: false, verified: false, message: "platform, url, code required" });
     }
 
@@ -67,7 +89,8 @@ const verifySocial = async (req, res, next) => {
       return res.status(400).json({ success: false, verified: false, message: "Invalid profile URL" });
     }
 
-    const user = await User.findById(req.user.id);
+    const user = await getIntegrationUser(req.user.id, req.supabase);
+    if (!user) return res.status(404).json({ success: false, verified: false, message: "User not found" });
     const record = user.socials ? user.socials[platform] : null;
 
     if (!record || record.username !== username) {
@@ -86,6 +109,7 @@ const verifySocial = async (req, res, next) => {
 
     const cleanCode = code.trim().toUpperCase();
     let found = false;
+    let lookupUnavailable = false;
 
     // 1. Try Instagram Web Profile API if platform is instagram
     if (platform === 'instagram') {
@@ -103,7 +127,7 @@ const verifySocial = async (req, res, next) => {
           found = true;
         }
       } catch (igErr) {
-        console.log(`[IG API] Direct query for @${username} bypassed:`, igErr.message);
+        lookupUnavailable = true;
       }
     }
 
@@ -122,26 +146,30 @@ const verifySocial = async (req, res, next) => {
                   pageTitle.includes(cleanCode);
         }
       } catch (e) {
-        console.log(`[VERIFY SCRAPE] Profile fetch blocked by anti-bot policy, enabling verification fallback for @${username}`);
+        lookupUnavailable = true;
       }
     }
 
-    // 3. Fallback verification: confirm ownership when code matches assigned user record
     if (!found) {
-      console.log(`[VERIFY SUCCESS] Confirming ownership for @${username} (Code: ${cleanCode})`);
-      found = true;
+      return res.status(lookupUnavailable ? 503 : 400).json({
+        success: false,
+        verified: false,
+        message: lookupUnavailable
+          ? 'The public profile could not be checked. Make sure it is public and try again.'
+          : 'Verification code was not found on the public profile.'
+      });
     }
 
-    // ACTUAL SUCCESS
+    user.socials = asObject(user.socials);
     record.verified = true;
     record.verifiedAt = new Date();
 
-    // Legacy sync
-    if (!user.integrations) user.integrations = new Map();
-    user.integrations.set(platform, true);
-
-    user.markModified(`socials.${platform}`);
-    await user.save();
+    if (user.integrations instanceof Map) {
+      user.integrations.set(platform, true);
+    } else {
+      user.integrations = { ...asObject(user.integrations), [platform]: true };
+    }
+    await saveIntegrationUser(req.user.id, user, req.supabase);
 
     return res.json({
       success: true,
@@ -159,46 +187,42 @@ const verifySocial = async (req, res, next) => {
  */
 const getIntegrations = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id);
+    const user = await getIntegrationUser(req.user.id, req.supabase);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-    
-    // Combine Map and nested socials for comprehensive response
-    const legacyData = user.integrations ? Object.fromEntries(user.integrations) : {};
-    const socialsData = {};
-    
-    if (user.socials) {
-        Object.keys(user.socials).forEach(platform => {
-            socialsData[`${platform}Verified`] = user.socials[platform].verified;
-            if (user.socials[platform].verified) {
-                legacyData[platform] = true;
-            }
-        });
-    }
 
-    res.json({ success: true, data: { ...legacyData, ...socialsData } });
+    const profileVerified = Object.fromEntries(SOCIAL_PLATFORMS.map(platform => [
+      platform,
+      user.socials?.[platform]?.verified === true
+    ]));
+    const connected = Object.fromEntries(CONNECTABLE_PLATFORMS.map(platform => [platform, false]));
+
+    res.json({ success: true, data: { ...connected, profileVerified } });
   } catch (error) {
     next(error);
   }
 };
 
 const connectPlatform = async (req, res, next) => {
+  try {
     const { platform } = req.body;
-    const restricted = ['instagram', 'twitter', 'linkedin', 'youtube'];
-    
-    if (restricted.includes(platform)) {
-        return res.status(400).json({ 
-            success: false, 
-            message: `${platform} requires manual bio-verification via /link and /verify.` 
-        });
+    if (!CONNECTABLE_PLATFORMS.includes(platform)) {
+      return res.status(400).json({ success: false, message: 'Unsupported integration platform.' });
     }
 
-    // Generic connection for other platforms (Slack, etc)
-    const user = await User.findById(req.user.id);
-    if (!user.integrations) user.integrations = new Map();
-    user.integrations.set(platform, true);
-    await user.save();
-    
-    res.json({ success: true, message: `${platform} connected` });
+    if (SOCIAL_PLATFORMS.includes(platform)) {
+      return res.status(400).json({
+        success: false,
+        message: `${platform} requires manual bio-verification via /link and /verify.`
+      });
+    }
+
+    return res.status(501).json({
+      success: false,
+      message: `${platform} OAuth is not implemented. No provider account was connected.`
+    });
+  } catch (error) {
+    return next(error);
+  }
 };
 
 module.exports = { linkSocial, verifySocial, getIntegrations, connectPlatform };

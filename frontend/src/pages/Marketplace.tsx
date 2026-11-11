@@ -24,7 +24,9 @@ export default function Marketplace() {
     const [myApplications, setMyApplications] = useState<CampaignApplication[]>([]);
     const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
     const [applications, setApplications] = useState<CampaignApplication[]>([]);
+    const [applicationsError, setApplicationsError] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
     const [saving, setSaving] = useState(false);
     const [search, setSearch] = useState('');
     const [nicheFilter, setNicheFilter] = useState('');
@@ -39,6 +41,7 @@ export default function Marketplace() {
     // ── Load data ─────────────────────────────────────────────────────────────
     const loadCampaigns = useCallback(async () => {
         setLoading(true);
+        setLoadError(false);
         try {
             if (isBrand) {
                 const res = await getMyCampaigns();
@@ -53,6 +56,7 @@ export default function Marketplace() {
             }
         } catch (err) {
             console.error('[Marketplace] Load failed', err);
+            setLoadError(true);
         } finally {
             setLoading(false);
         }
@@ -63,10 +67,28 @@ export default function Marketplace() {
     const loadApplications = async (campaign: Campaign) => {
         setSelectedCampaign(campaign);
         setView('manage');
+        setApplicationsError(false);
         try {
             const res = await getCampaignApplications(campaign._id);
             setApplications(res.data || []);
-        } catch { setApplications([]); }
+        } catch (err) {
+            console.error('[Marketplace] Applications load failed', err);
+            setApplications([]);
+            setApplicationsError(true);
+        }
+    };
+
+    const refreshApplications = async () => {
+        if (!selectedCampaign) return;
+        setApplicationsError(false);
+        try {
+            const res = await getCampaignApplications(selectedCampaign._id);
+            setApplications(res.data || []);
+        } catch (err) {
+            console.error('[Marketplace] Applications refresh failed', err);
+            setApplications([]);
+            setApplicationsError(true);
+        }
     };
 
     // ── Actions ───────────────────────────────────────────────────────────────
@@ -159,11 +181,15 @@ export default function Marketplace() {
                             <h3 className="text-2xl font-bold text-heaven-text uppercase tracking-tight">
                                 Applicants <span className="text-heaven-muted/20 ml-2">({applications.length})</span>
                             </h3>
-                            <Button variant="secondary" onClick={() => getCampaignApplications(selectedCampaign._id).then(r => setApplications(r.data || []))} className="h-10 px-6 rounded-xl text-[10px] font-bold uppercase border-white/10">
+                            <Button variant="secondary" onClick={refreshApplications} className="h-10 px-6 rounded-xl text-[10px] font-bold uppercase border-white/10">
                                 <RefreshCw className="w-4 h-4 mr-2" /> Refresh
                             </Button>
                         </div>
-                        {applications.length === 0 ? (
+                        {applicationsError ? (
+                            <div role="alert" className="text-center py-24 bg-white/[0.02] rounded-[2.5rem] border border-dashed border-white/[0.08]">
+                                <p className="text-rose-400 text-sm font-bold">Unable to load applications. Please try again.</p>
+                            </div>
+                        ) : applications.length === 0 ? (
                             <div className="text-center py-24 bg-white/[0.02] rounded-[2.5rem] border border-dashed border-white/[0.08]">
                                 <Users className="w-16 h-16 text-heaven-muted/10 mx-auto mb-6" />
                                 <p className="text-[10px] font-bold text-heaven-muted uppercase tracking-[0.4em] opacity-40">No applicants yet.</p>
@@ -300,6 +326,13 @@ export default function Marketplace() {
                 <div className="flex items-center justify-center h-52">
                     <div className="w-14 h-14 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
                 </div>
+            ) : loadError ? (
+                <div role="alert" className="text-center py-32 space-y-6">
+                    <p className="text-rose-400 text-sm font-bold">Unable to load campaigns. Check your connection and try again.</p>
+                    <Button onClick={loadCampaigns} variant="secondary" className="h-14 px-10 rounded-2xl">
+                        <RefreshCw className="w-4 h-4 mr-3" /> Retry
+                    </Button>
+                </div>
             ) : campaigns.length === 0 ? (
                 <div className="text-center py-40">
                     <div className="w-24 h-24 bg-white/[0.02] rounded-[3rem] flex items-center justify-center text-heaven-muted/10 mx-auto mb-8 border border-white/[0.08]">
@@ -384,4 +417,3 @@ export default function Marketplace() {
         </div>
     );
 }
-

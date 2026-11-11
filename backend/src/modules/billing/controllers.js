@@ -1,106 +1,100 @@
-const Transaction = require('./models');
-const User = require('../auth/models');
+const { supabase } = require('../../config/supabase');
 
 let stripe = null;
 if (process.env.STRIPE_SECRET_KEY && !process.env.STRIPE_SECRET_KEY.includes('your_')) {
-  try {
-    stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-  } catch (err) {
-    console.error('[STRIPE ERROR] Failed to initialize Stripe:', err.message);
-  }
+  stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 }
 
-/**
- * POST /api/billing/create-intent
- * Creates a Stripe Payment Intent for secure tokenized client checkout.
- */
 const createPaymentIntent = async (req, res, next) => {
   try {
     const { amount, currency = 'inr', plan = 'pro' } = req.body;
-    
-    if (!amount || amount <= 0) {
+    if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) {
       return res.status(400).json({ success: false, message: 'Invalid payment amount' });
     }
-
-    if (stripe) {
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(amount * 100), // convert to smallest currency unit
-        currency: currency.toLowerCase(),
-        metadata: { userId: String(req.user.id), plan }
-      });
-      return res.json({
-        success: true,
-        clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id
-      });
+    if (plan !== 'pro') return res.status(400).json({ success: false, message: 'Unsupported subscription plan.' });
+    if (!stripe) {
+      return res.status(503).json({ success: false, message: 'Payments are not configured.' });
     }
 
-    // Secure tokenized fallback when Stripe secret is not configured
-    const mockIntentId = `pi_token_${Math.random().toString(36).substring(2, 12)}`;
-    res.json({
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(Number(amount) * 100),
+      currency: currency.toLowerCase(),
+      metadata: { userId: req.user.id, plan }
+    });
+    return res.json({
       success: true,
-      clientSecret: `${mockIntentId}_secret`,
-      paymentIntentId: mockIntentId,
-      message: 'Payment intent initialized'
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id
     });
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
-/**
- * POST /api/billing/pay
- * Finalizes subscription upgrade after tokenized payment authorization.
- * NEVER accepts raw card numbers or CVV.
- */
 const processPayment = async (req, res, next) => {
   try {
     const { amount, plan = 'pro', currency = 'INR', paymentToken } = req.body;
-
-    if (!amount || amount <= 0) {
+    const numericAmount = Number(amount);
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
       return res.status(400).json({ success: false, message: 'Invalid payment amount' });
     }
-
-    // Verify payment intent with Stripe if active
-    if (stripe && paymentToken && paymentToken.startsWith('pi_')) {
-      const intent = await stripe.paymentIntents.retrieve(paymentToken);
-      if (intent.status !== 'succeeded') {
-        return res.status(400).json({ success: false, message: 'Payment authorization incomplete' });
-      }
+    if (plan !== 'pro') return res.status(400).json({ success: false, message: 'Unsupported subscription plan.' });
+    if (!stripe || typeof paymentToken !== 'string' || !paymentToken.startsWith('pi_')) {
+      return res.status(503).json({ success: false, message: 'A verified payment authorization is required.' });
     }
 
-    // Create transaction record
-    const payment = await Transaction.create({
-      sender_id: req.user.id,
-      recipient_id: req.user.id,
-      amount,
-      currency,
-      status: 'paid'
-    });
+    const intent = await stripe.paymentIntents.retrieve(paymentToken);
+    if (
+      intent.status !== 'succeeded' ||
+      intent.amount !== Math.round(numericAmount * 100) ||
+      intent.currency.toLowerCase() !== currency.toLowerCase() ||
+      intent.metadata.userId !== req.user.id ||
+      intent.metadata.plan !== plan
+    ) {
+      return res.status(400).json({ success: false, message: 'Payment authorization does not match this account or purchase.' });
+    }
 
-    // Update User plan to Pro
-    await User.findByIdAndUpdate(req.user.id, { plan: plan.toLowerCase() });
+    const { data: payment, error: paymentError } = await supabase
+      .from('transactions')
+      .insert({
+        sender_id: req.user.id,
+        recipient_id: req.user.id,
+        amount: numericAmount,
+        currency: currency.toUpperCase(),
+        status: 'paid'
+      })
+      .select()
+      .single();
+    if (paymentError) throw paymentError;
 
-    res.status(201).json({
+    const { error: profileError } = await req.supabase
+      .from('profiles')
+      .update({ plan: plan.toLowerCase() })
+      .eq('id', req.user.id);
+    if (profileError) throw profileError;
+
+    return res.status(201).json({
       success: true,
       message: `Subscription successfully upgraded to ${plan.toUpperCase()}`,
       plan: plan.toLowerCase(),
       data: payment
     });
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
-/**
- * GET /api/billing/history
- */
 const getHistory = async (req, res, next) => {
   try {
-    const history = await Transaction.getHistoryByUserId(req.user.id);
-    res.json({ success: true, data: history });
+    const { data: history, error } = await req.supabase
+      .from('transactions')
+      .select('*')
+      .or(`sender_id.eq.${req.user.id},recipient_id.eq.${req.user.id}`)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return res.json({ success: true, data: history || [] });
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 

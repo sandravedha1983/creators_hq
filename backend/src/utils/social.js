@@ -4,25 +4,45 @@ const axios = require("axios");
  * Extract username from profile URL based on platform patterns
  */
 function extractUsername(url, platform) {
-  const patterns = {
-    instagram: /instagram\.com\/([^/?#]+)/i,
-    twitter: /(?:twitter|x)\.com\/([^/?#]+)/i,
-    linkedin: /linkedin\.com\/in\/([^/?#]+)/i,
-    youtube: /youtube\.com\/@([^/?#]+)/i
+  const hosts = {
+    instagram: ['instagram.com', 'www.instagram.com'],
+    twitter: ['twitter.com', 'www.twitter.com', 'x.com', 'www.x.com'],
+    linkedin: ['linkedin.com', 'www.linkedin.com'],
+    youtube: ['youtube.com', 'www.youtube.com']
   };
-  const match = url?.match(patterns[platform]);
-  return match ? match[1] : null;
+  const allowedHosts = hosts[platform];
+  if (!allowedHosts || typeof url !== 'string') return null;
+
+  try {
+    const parsedUrl = new URL(url);
+    if (parsedUrl.protocol !== 'https:' || !allowedHosts.includes(parsedUrl.hostname.toLowerCase())) {
+      return null;
+    }
+
+    const path = parsedUrl.pathname;
+    const patterns = {
+      instagram: /^\/([^/]+)\/?$/,
+      twitter: /^\/([^/]+)\/?$/,
+      linkedin: /^\/in\/([^/]+)\/?$/,
+      youtube: /^\/@([^/]+)\/?$/
+    };
+    const match = path.match(patterns[platform]);
+    return match ? decodeURIComponent(match[1]) : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
  * Build the public profile URL for scraping
  */
 function profileUrl(platform, username) {
+  const safeUsername = encodeURIComponent(username);
   return {
-    instagram: `https://www.instagram.com/${username}/`,
-    twitter: `https://x.com/${username}`,
-    linkedin: `https://www.linkedin.com/in/${username}`,
-    youtube: `https://www.youtube.com/@${username}`
+    instagram: `https://www.instagram.com/${safeUsername}/`,
+    twitter: `https://x.com/${safeUsername}`,
+    linkedin: `https://www.linkedin.com/in/${safeUsername}`,
+    youtube: `https://www.youtube.com/@${safeUsername}`
   }[platform];
 }
 

@@ -12,11 +12,12 @@ import { cn } from "@/utils/cn";
 import { toast } from 'react-hot-toast';
 import { Spinner } from "@/components/ui/Spinner";
 import API from '@/services/api';
+import { isAxiosError } from 'axios';
 
-type IntegrationStatus = 'connected' | 'pending' | 'offline';
+type IntegrationStatus = 'connected' | 'verified' | 'pending' | 'offline';
 
 export default function Integrations() {
-    const { integrations, toggleIntegration } = useAppContext();
+    const { integrations, integrationsLoading, integrationsError, toggleIntegration } = useAppContext();
     const [isSyncing, setIsSyncing] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     
@@ -37,6 +38,7 @@ export default function Integrations() {
 
     const getStatus = (integration: any): IntegrationStatus => {
         if (integration.connected) return 'connected';
+        if (integration.verified) return 'verified';
         if (pendingPlatforms.has(integration.name.toLowerCase())) return 'pending';
         return 'offline';
     };
@@ -44,6 +46,7 @@ export default function Integrations() {
     const getStatusLabel = (status: IntegrationStatus) => {
         switch (status) {
             case 'connected': return 'Connected';
+            case 'verified': return 'Profile Verified';
             case 'pending': return 'Pending';
             case 'offline': return 'Offline';
         }
@@ -52,6 +55,7 @@ export default function Integrations() {
     const getStatusClasses = (status: IntegrationStatus) => {
         switch (status) {
             case 'connected': return 'border-primary/20 bg-primary/10 text-primary';
+            case 'verified': return 'border-sky-500/20 bg-sky-500/10 text-sky-300';
             case 'pending': return 'border-amber-500/20 bg-amber-500/10 text-amber-400';
             case 'offline': return 'border-white/5 text-heaven-muted/40';
         }
@@ -73,8 +77,11 @@ export default function Integrations() {
             await toggleIntegration(id);
             toast.success(`${name} ${isConnected ? 'Disconnected' : 'Connected Successfully'}`);
         } catch (error) {
-            console.error(`Failed to link ${name}:`, error);
-            toast.error(`Failed to link ${name}. Check your connection.`);
+            const responseMessage = isAxiosError<{ message?: string }>(error)
+                ? error.response?.data?.message
+                : undefined;
+            const message = responseMessage || (error instanceof Error ? error.message : `Unable to connect ${name}.`);
+            toast.error(message);
         } finally {
             setIsSyncing(null);
         }
@@ -192,6 +199,12 @@ export default function Integrations() {
                 </div>
             </div>
 
+            {integrationsError && (
+                <div role="alert" className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-6 py-4 text-sm text-rose-300">
+                    Integration status could not be verified. Connections are shown as disconnected until the server can confirm them. {integrationsError}
+                </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
                 {integrations.map((integration, idx) => {
                     const status = getStatus(integration);
@@ -231,11 +244,13 @@ export default function Integrations() {
 
                             <Button
                                 onClick={() => handleToggle(integration.id, integration.name, integration.connected)}
-                                disabled={!!isSyncing}
+                                disabled={!!isSyncing || integrationsLoading || status === 'verified'}
                                 variant={integration.connected ? "ghost" : "primary"}
                                 className="w-full h-14 rounded-2xl font-bold text-[10px] uppercase tracking-widest"
                             >
-                                {isSyncing === integration.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : (integration.connected ? 'Disconnect' : 'Connect')}
+                                {isSyncing === integration.id || integrationsLoading
+                                    ? <RefreshCw className="w-4 h-4 animate-spin" />
+                                    : status === 'verified' ? 'Profile Verified' : (integration.connected ? 'Disconnect' : 'Connect')}
                             </Button>
                         </Card>
                     </motion.div>

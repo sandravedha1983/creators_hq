@@ -2,7 +2,7 @@ import API from './api';
 
 export interface Campaign {
   _id: string;
-  brand_id: { _id: string; name: string; email: string } | string;
+  brand_id: { _id: string; name: string; email?: string; avatar?: string } | string;
   title: string;
   description: string;
   budget: string;
@@ -11,14 +11,14 @@ export interface Campaign {
   requirements: string;
   deadline?: string;
   image: string;
-  status: 'draft' | 'open' | 'paused' | 'closed';
+  status: 'draft' | 'open' | 'active' | 'paused' | 'closed' | 'completed' | 'cancelled';
   createdAt: string;
 }
 
 export interface CampaignApplication {
   _id: string;
   campaign_id: Campaign | string;
-  creator_id: { _id: string; name: string; email: string } | string;
+  creator_id: { _id: string; name: string; email?: string; avatar?: string } | string;
   message: string;
   status: 'pending' | 'approved' | 'rejected';
   createdAt: string;

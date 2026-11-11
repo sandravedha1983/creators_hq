@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { login as loginApi } from '../api'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { Zap, Eye, EyeOff, Lock, Mail } from 'lucide-react'
@@ -17,17 +16,10 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      const res = await loginApi(form.email, form.password)
-      const { token, user } = res.data
-      if (user?.role !== 'admin') {
-        setError('Access denied — admin accounts only.')
-        setLoading(false)
-        return
-      }
-      login(token, user)
+      await login(form.email, form.password)
       navigate('/')
     } catch (err) {
-      setError(err.response?.data?.message || 'Invalid credentials. Please try again.')
+      setError(err.response?.data?.message || err.message || 'Invalid credentials. Please try again.')
     } finally {
       setLoading(false)
     }

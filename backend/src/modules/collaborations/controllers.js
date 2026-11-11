@@ -1,16 +1,9 @@
-const Collaboration = require('./models');
-const { statusSchema, requestSchema } = require('./validations');
-const { supabase } = require('../../config/supabase');
+const { requestSchema } = require('./validations');
 const { createNotification } = require('../notifications/controllers');
-
-const isSupabaseActive = () => {
-  return supabase && process.env.SUPABASE_URL && !process.env.SUPABASE_URL.includes('dummy-creatorshq');
-};
 
 const getMyCollaborations = async (req, res, next) => {
   try {
-    if (isSupabaseActive()) {
-      const { data, error } = await supabase
+      const { data, error } = await req.supabase
         .from('collaborations')
         .select(`
           id,
@@ -25,18 +18,7 @@ const getMyCollaborations = async (req, res, next) => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return res.json({ success: true, data });
-    }
-
-    // MongoDB Fallback
-    const list = await Collaboration.find({
-      $or: [{ sender_id: req.user.id }, { receiver_id: req.user.id }]
-    })
-      .populate('sender_id', 'name email avatar role')
-      .populate('receiver_id', 'name email avatar role')
-      .sort({ createdAt: -1 });
-
-    res.json({ success: true, data: list });
+    return res.json({ success: true, data });
   } catch (error) {
     next(error);
   }
@@ -49,8 +31,7 @@ const getByBrand = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Not authorized to view these collaborations.' });
     }
 
-    if (isSupabaseActive()) {
-      const { data, error } = await supabase
+      const { data, error } = await req.supabase
         .from('collaborations')
         .select(`
           id,
@@ -63,13 +44,7 @@ const getByBrand = async (req, res, next) => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return res.json({ success: true, data });
-    }
-
-    const list = await Collaboration.find({ sender_id: req.params.brandId })
-      .populate('receiver_id', 'name email avatar')
-      .sort({ createdAt: -1 });
-    res.json({ success: true, data: list });
+    return res.json({ success: true, data });
   } catch (error) {
     next(error);
   }
@@ -82,8 +57,7 @@ const getByCreator = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Not authorized to view these collaborations.' });
     }
 
-    if (isSupabaseActive()) {
-      const { data, error } = await supabase
+      const { data, error } = await req.supabase
         .from('collaborations')
         .select(`
           id,
@@ -96,13 +70,7 @@ const getByCreator = async (req, res, next) => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return res.json({ success: true, data });
-    }
-
-    const list = await Collaboration.find({ receiver_id: req.params.creatorId })
-      .populate('sender_id', 'name email avatar')
-      .sort({ createdAt: -1 });
-    res.json({ success: true, data: list });
+    return res.json({ success: true, data });
   } catch (error) {
     next(error);
   }
@@ -185,12 +153,7 @@ const validateTransition = (currentStatus, targetStatus, { isSender, isReceiver,
 };
 
 const updateStatus = async (req, res, next) => {
-  // SECURITY NOTE: This controller uses the module-level `supabase` client
-  // (service-role key) for all Supabase writes, NOT req.supabase.
-  // Service-role writes bypass RLS. This controller must therefore authenticate
-  // the caller, validate participant/admin authority and validate the transition
-  // before every write. The database trigger still protects immutable IDs and
-  // recognizes service role only from its JWT role claim, never from a NULL UID.
+  // Verify participant authority and the transition before the conditional update.
   try {
     // 1. Strictly extract only status from request body (never allow sender_id, receiver_id, or protected fields)
     const { status } = req.body || {};
@@ -202,9 +165,7 @@ const updateStatus = async (req, res, next) => {
       });
     }
 
-    if (isSupabaseActive()) {
-      // Fetch collaboration record to check existence, ownership, and current status
-      const { data: collab, error: fetchErr } = await supabase
+      const { data: collab, error: fetchErr } = await req.supabase
         .from('collaborations')
         .select('*')
         .eq('id', req.params.id)
@@ -239,7 +200,7 @@ const updateStatus = async (req, res, next) => {
 
       // Concurrency protection: update only if status has not been modified by another concurrent request
       // and update ONLY the status field
-      const { data: updated, error: updateErr } = await supabase
+      const { data: updated, error: updateErr } = await req.supabase
         .from('collaborations')
         .update({ status })
         .eq('id', req.params.id)
@@ -268,67 +229,6 @@ const updateStatus = async (req, res, next) => {
         console.error('[COLLABORATION NOTIFICATION ERROR]', notifErr?.message || notifErr);
       }
 
-      return res.json({ success: true, data: updated });
-    }
-
-    // MongoDB Path
-    const collab = await Collaboration.findById(req.params.id);
-    if (!collab) {
-      return res.status(404).json({ success: false, message: 'Collaboration not found' });
-    }
-
-    const isSender = String(collab.sender_id) === String(req.user.id);
-    const isReceiver = String(collab.receiver_id) === String(req.user.id);
-    const isAdmin = req.user.role === 'admin';
-
-    if (!isSender && !isReceiver && !isAdmin) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to update this collaboration'
-      });
-    }
-
-    const transitionCheck = validateTransition(collab.status, status, { isSender, isReceiver, isAdmin });
-    if (!transitionCheck.valid) {
-      return res.status(transitionCheck.code).json({
-        success: false,
-        message: transitionCheck.message
-      });
-    }
-
-    if (transitionCheck.isNoOp) {
-      return res.json({ success: true, data: collab });
-    }
-
-    // Concurrency protection: conditional atomic findOneAndUpdate matching existing status
-    // and strictly updating ONLY the status field ($set: { status })
-    const updated = await Collaboration.findOneAndUpdate(
-      { _id: req.params.id, status: collab.status },
-      { $set: { status } },
-      { new: true }
-    );
-
-    if (!updated) {
-      return res.status(409).json({
-        success: false,
-        message: 'Conflict: collaboration status was modified concurrently by another process.'
-      });
-    }
-
-    // Notify other party safely
-    try {
-      const targetUserId = String(collab.sender_id) === String(req.user.id) ? collab.receiver_id : collab.sender_id;
-      await createNotification(
-        targetUserId,
-        'Collaboration Status Updated',
-        `Your collaboration status has been updated to "${status}".`,
-        'collaboration',
-        '/collaborations'
-      );
-    } catch (notifErr) {
-      console.error('[COLLABORATION NOTIFICATION ERROR]', notifErr?.message || notifErr);
-    }
-
     return res.json({ success: true, data: updated });
   } catch (error) {
     next(error);
@@ -339,8 +239,7 @@ const createRequest = async (req, res, next) => {
   try {
     const validatedData = requestSchema.parse(req.body);
 
-    if (isSupabaseActive()) {
-      const { data: request, error } = await supabase
+      const { data: request, error } = await req.supabase
         .from('collaborations')
         .insert({
           sender_id: req.user.id,
@@ -353,34 +252,19 @@ const createRequest = async (req, res, next) => {
       if (error) throw error;
 
       // Trigger in-app notification for receiver
-      await createNotification(
-        validatedData.receiver_id,
-        'New Collaboration Proposal',
-        `You received a new collaboration proposal.`,
-        'collaboration',
-        '/collaborations'
-      );
+      try {
+        await createNotification(
+          validatedData.receiver_id,
+          'New Collaboration Proposal',
+          'You received a new collaboration proposal.',
+          'collaboration',
+          '/collaborations'
+        );
+      } catch (notificationError) {
+        console.error('[COLLABORATION NOTIFICATION ERROR]', notificationError?.message || notificationError);
+      }
 
-      return res.status(201).json({ success: true, data: request });
-    }
-
-    // MongoDB Fallback
-    const request = await Collaboration.create({
-      sender_id: req.user.id,
-      receiver_id: validatedData.receiver_id,
-      message: validatedData.message
-    });
-
-    // Trigger in-app notification
-    await createNotification(
-      validatedData.receiver_id,
-      'New Collaboration Proposal',
-      `You received a new collaboration proposal.`,
-      'collaboration',
-      '/collaborations'
-    );
-
-    res.status(201).json({ success: true, data: request });
+    return res.status(201).json({ success: true, data: request });
   } catch (error) {
     next(error);
   }

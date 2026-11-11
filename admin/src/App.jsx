@@ -14,7 +14,7 @@ import SettingsPage from './pages/SettingsPage'
 import { getUsers } from './api'
 
 function ProtectedLayout() {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, isInitializing } = useAuth()
   const [userCount, setUserCount] = useState(0)
 
   useEffect(() => {
@@ -23,6 +23,7 @@ function ProtectedLayout() {
     }
   }, [isAuthenticated])
 
+  if (isInitializing) return null
   if (!isAuthenticated) return <Navigate to="/login" replace />
 
   return (

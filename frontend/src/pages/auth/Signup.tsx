@@ -52,14 +52,9 @@ export default function Signup() {
         }
     };
 
-    const handleSocialLogin = async (service: string) => {
+    const handleSocialLogin = async (service: 'google' | 'linkedin') => {
         try {
-            if (service.toLowerCase() === 'google' || service.toLowerCase() === 'linkedin') {
-                await signInWithOAuth(service.toLowerCase() as 'google' | 'linkedin');
-            } else {
-                const baseURL = import.meta.env.VITE_API_URL || "";
-                window.location.href = `${baseURL}/api/auth/${service.toLowerCase()}`;
-            }
+            await signInWithOAuth(service);
         } catch (err: any) {
             toast.error(`Social signup failed: ${err.message || 'Please use email registration'}`);
         }
@@ -179,7 +174,7 @@ export default function Signup() {
 
                 <div className="grid grid-cols-2 gap-8 relative z-10">
                     <Button
-                        onClick={() => handleSocialLogin('Google')}
+                        onClick={() => handleSocialLogin('google')}
                         variant="secondary"
                         className="h-18 rounded-[2rem] border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04] text-heaven-muted/60 font-bold text-[9px] uppercase tracking-widest group flex items-center justify-center gap-4 transition-all"
                     >
@@ -192,7 +187,7 @@ export default function Signup() {
                         Google
                     </Button>
                     <Button
-                        onClick={() => handleSocialLogin('LinkedIn')}
+                        onClick={() => handleSocialLogin('linkedin')}
                         variant="secondary"
                         className="h-18 rounded-[2rem] border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04] text-heaven-muted/60 font-bold text-[9px] uppercase tracking-widest group flex items-center justify-center gap-4 transition-all"
                     >

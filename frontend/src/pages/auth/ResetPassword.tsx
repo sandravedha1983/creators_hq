@@ -1,21 +1,18 @@
 import React, { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Lock, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import API from '@/services/api';
+import { useAuth } from '@/context/AuthContext';
 
 export default function ResetPassword() {
-    const [searchParams] = useSearchParams();
-    const tokenFromUrl = searchParams.get('token') || '';
-    const emailFromUrl = searchParams.get('email') || '';
-
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [success, setSuccess] = useState(false);
+    const { updatePassword } = useAuth();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -33,11 +30,7 @@ export default function ResetPassword() {
 
         setIsLoading(true);
         try {
-            await API.post('/api/auth/reset-password', {
-                email: emailFromUrl,
-                token: tokenFromUrl,
-                newPassword: password
-            });
+            await updatePassword(password);
             setSuccess(true);
             toast.success('Password has been reset successfully!');
         } catch (err: any) {

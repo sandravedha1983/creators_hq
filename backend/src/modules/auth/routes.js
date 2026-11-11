@@ -1,99 +1,97 @@
-
 const express = require('express');
-const axios = require('axios');
 const authController = require('./controllers');
 const { authenticate } = require('../../middleware/auth');
+const { exchangeOAuthHandoff } = require('./oauthHandoff');
+const {
+  getCookieValue,
+  isValidOAuthState,
+  serializeOAuthStateCookie
+} = require('./oauthState');
+
 const router = express.Router();
-console.log("Auth routes loaded");
 
+const getProviderConfig = (provider) => {
+  if (provider !== 'google' && provider !== 'linkedin') {
+    return null;
+  }
 
-const passport = require('./passport');
-
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
-
-const getFrontendUrl = (req) => {
-    if (req.hostname === 'localhost' || req.hostname === '127.0.0.1') {
-        return 'http://localhost:5173';
-    }
-    return process.env.FRONTEND_URL || 'http://localhost:5173';
-};
-router.post('/register', authController.register);
-router.post('/login', authController.login);
-router.post('/send-otp', authController.sendOTP);
-router.post('/resend-otp', authController.resendOTP);
-router.post('/verify-otp', authController.verifyOTP);
-router.post('/admin-login', authController.adminLogin);
-router.post('/forgot-password', authController.forgotPassword);
-router.post('/reset-password', authController.resetPassword);
-
-const isOauthConfigured = (clientId, clientSecret) => {
-  return clientId && 
-         clientSecret && 
-         !clientId.includes('your_') && 
-         !clientSecret.includes('your_') &&
-         !clientId.includes('dummy_');
+  return {
+    stateCookie: `creatorshq_${provider}_oauth_state`,
+    bindingCookie: `creatorshq_${provider}_oauth_binding`,
+    frontendRedirect: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/login`
+  };
 };
 
-// Google OAuth
-router.get("/google", (req, res, next) => {
-  if (!isOauthConfigured(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET)) {
-    const redirectUrl = getFrontendUrl(req);
-    return res.redirect(`${redirectUrl}/login?error=google_not_configured`);
+const clearOAuthCookies = (res, provider) => {
+  const config = getProviderConfig(provider);
+  if (!config) return;
+
+  const cookies = [config.stateCookie, config.bindingCookie];
+  for (const cookieName of cookies) {
+    res.append('Set-Cookie', serializeOAuthStateCookie('', {
+      cookieName,
+      path: '/api/auth',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+      maxAge: 0
+    }));
   }
-  passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
-});
+};
 
-router.get("/google/callback", (req, res, next) => {
-  if (!isOauthConfigured(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET)) {
-    const redirectUrl = getFrontendUrl(req);
-    return res.redirect(`${redirectUrl}/login?error=google_not_configured`);
+const rejectInvalidOAuthState = (req, res, provider) => {
+  const config = getProviderConfig(provider);
+  if (!config) {
+    return res.status(400).json({ success: false, message: 'Unsupported OAuth provider.' });
   }
-  const frontendUrl = getFrontendUrl(req);
-  passport.authenticate("google", { session: false, failureRedirect: `${frontendUrl}/login?error=oauth_failed` }, (err, user) => {
-    if (err || !user) {
-      console.error('[OAUTH] Google callback error:', err?.message || 'No user returned');
-      return res.redirect(`${frontendUrl}/login?error=oauth_failed`);
-    }
-    const token = user.token;
-    res.redirect(`${frontendUrl}/dashboard-redirect?token=${token}`);
-  })(req, res, next);
-});
 
-// LinkedIn OAuth
-router.get("/linkedin", (req, res, next) => {
-  if (!isOauthConfigured(process.env.LINKEDIN_CLIENT_ID, process.env.LINKEDIN_CLIENT_SECRET)) {
-    const redirectUrl = getFrontendUrl(req);
-    return res.redirect(`${redirectUrl}/login?error=linkedin_not_configured`);
+  const cookieHeader = req.headers.cookie || '';
+  const queryState = typeof req.query?.state === 'string' ? req.query.state : '';
+  const isValidState = isValidOAuthState(queryState, cookieHeader, config.stateCookie, config.bindingCookie);
+
+  if (!isValidState) {
+    clearOAuthCookies(res, provider);
+    return res.redirect(`${config.frontendRedirect}?error=oauth_state_invalid`);
   }
-  passport.authenticate("linkedin", { scope: ["openid", "profile", "email"], state: 'SOME_STATE' })(req, res, next);
-});
 
-router.get("/linkedin/callback", (req, res, next) => {
-  if (!isOauthConfigured(process.env.LINKEDIN_CLIENT_ID, process.env.LINKEDIN_CLIENT_SECRET)) {
-    const redirectUrl = getFrontendUrl(req);
-    return res.redirect(`${redirectUrl}/login?error=linkedin_not_configured`);
-  }
-  const frontendUrl = getFrontendUrl(req);
-  passport.authenticate("linkedin", { session: false, failureRedirect: `${frontendUrl}/login?error=oauth_failed` }, (err, user) => {
-    if (err || !user) {
-      console.error('[OAUTH] LinkedIn callback error:', err?.message || 'No user returned');
-      return res.redirect(`${frontendUrl}/login?error=oauth_failed`);
-    }
-    const token = user.token;
-    res.redirect(`${frontendUrl}/dashboard-redirect?token=${token}`);
-  })(req, res, next);
-});
-
-// Facebook OAuth
-router.get("/facebook", (req, res) => {
-  const url = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${process.env.APP_ID}&redirect_uri=${process.env.REDIRECT_URI}&scope=email`;
-  res.redirect(url);
-});
-
-// Facebook OAuth Callback
-router.get("/facebook/callback", authController.facebookCallback);
+  return null;
+};
 
 router.get('/profile', authenticate, authController.getProfile);
 router.put('/profile', authenticate, authController.updateProfile);
+
+router.get('/google/callback', (req, res) => {
+  const invalidStateResponse = rejectInvalidOAuthState(req, res, 'google');
+  if (invalidStateResponse) return invalidStateResponse;
+  return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard-redirect`);
+});
+
+router.get('/linkedin/callback', (req, res) => {
+  const invalidStateResponse = rejectInvalidOAuthState(req, res, 'linkedin');
+  if (invalidStateResponse) return invalidStateResponse;
+  return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard-redirect`);
+});
+
+router.post('/oauth-exchange', async (req, res) => {
+  try {
+    const { code, provider } = req.body || {};
+    const cookieHeader = req.headers.cookie || '';
+    const bindingName = provider === 'linkedin' ? 'creatorshq_linkedin_oauth_binding' : 'creatorshq_google_oauth_binding';
+    const bindingSecret = getCookieValue(cookieHeader, bindingName);
+    const isSupportedProvider = provider === 'google' || provider === 'linkedin';
+
+    const token = await exchangeOAuthHandoff(code, isSupportedProvider ? bindingSecret : null);
+    if (!isSupportedProvider) {
+      return res.status(400).json({ success: false, message: 'Unsupported OAuth provider.' });
+    }
+    if (!token) {
+      return res.status(400).json({ success: false, message: 'OAuth handoff failed or expired.' });
+    }
+
+    return res.json({ success: true, token });
+  } catch (error) {
+    console.error('[OAUTH HANDOFF ERROR]', error.message || error);
+    return res.status(400).json({ success: false, message: 'OAuth handoff failed.' });
+  }
+});
 
 module.exports = router;

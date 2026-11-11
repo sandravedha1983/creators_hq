@@ -1,33 +1,20 @@
 const OpenAI = require('openai');
-const AiGeneration = require('./models');
-const User = require('../auth/models');
-const { supabase } = require('../../config/supabase');
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const FREE_MONTHLY_LIMIT = 5;
 
-const isSupabaseActive = () => {
-  return supabase && process.env.SUPABASE_URL && !process.env.SUPABASE_URL.includes('dummy-creatorshq');
-};
-
 // ─── Helper: count this month's generations for a user ───────────────────────
-async function getMonthlyUsage(userId) {
+async function getMonthlyUsage(userId, client) {
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-
-  if (isSupabaseActive()) {
-    const { count, error } = await supabase
-      .from('ai_generations')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .gte('created_at', start);
-
-    if (!error) return count || 0;
-  }
-
-  // MongoDB Fallback
-  return AiGeneration.countDocuments({ user_id: userId, createdAt: { $gte: new Date(start) } });
+  const { count, error } = await client
+    .from('ai_generations')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .gte('created_at', start);
+  if (error) throw error;
+  return count || 0;
 }
 
 // ─── Helper: generate via OpenAI with fallback ────────────────────────────────
@@ -50,17 +37,8 @@ async function callOpenAI(systemPrompt, userPrompt, model = 'gpt-4o-mini') {
 // ─── GET /api/ai/usage — return current usage count ──────────────────────────
 const getUsage = async (req, res, next) => {
   try {
-    let isPro = req.user.plan === 'pro';
-
-    if (isSupabaseActive()) {
-      const { data: prof } = await supabase.from('profiles').select('plan').eq('id', req.user.id).single();
-      if (prof) isPro = prof.plan === 'pro';
-    } else {
-      const user = await User.findById(req.user.id).select('plan');
-      if (user) isPro = user.plan === 'pro';
-    }
-
-    const used = await getMonthlyUsage(req.user.id);
+    const isPro = req.user.plan === 'pro';
+    const used = await getMonthlyUsage(req.user.id, req.supabase);
     res.json({
       success: true,
       data: {
@@ -85,17 +63,10 @@ const generateContent = async (req, res, next) => {
     const normalizedType = type === 'ideas' ? 'idea' : (type || 'idea');
 
     // Usage limit check
-    let isPro = req.user.plan === 'pro';
-    if (isSupabaseActive()) {
-      const { data: prof } = await supabase.from('profiles').select('plan').eq('id', req.user.id).single();
-      if (prof) isPro = prof.plan === 'pro';
-    } else {
-      const user = await User.findById(req.user.id).select('plan');
-      if (user) isPro = user.plan === 'pro';
-    }
+    const isPro = req.user.plan === 'pro';
 
     if (!isPro) {
-      const used = await getMonthlyUsage(req.user.id);
+      const used = await getMonthlyUsage(req.user.id, req.supabase);
       if (used >= FREE_MONTHLY_LIMIT) {
         return res.status(402).json({
           success: false,
@@ -131,24 +102,15 @@ const generateContent = async (req, res, next) => {
     }
 
     // Save to DB for history and usage tracking
-    if (isSupabaseActive()) {
-      await supabase.from('ai_generations').insert({
-        user_id: req.user.id,
-        type: normalizedType,
-        prompt,
-        output,
-        tokens_used: tokens,
-        model: 'gpt-4o-mini'
-      });
-    } else {
-      await AiGeneration.create({
-        user_id: req.user.id,
-        type: normalizedType,
-        prompt,
-        output,
-        tokens_used: tokens
-      });
-    }
+    const { error: saveError } = await req.supabase.from('ai_generations').insert({
+      user_id: req.user.id,
+      type: normalizedType,
+      prompt,
+      output,
+      tokens_used: tokens,
+      model: 'gpt-4o-mini'
+    });
+    if (saveError) throw saveError;
 
     res.json({ success: true, data: output });
   } catch (err) {
@@ -212,23 +174,14 @@ const chat = async (req, res, next) => {
 // ─── GET /api/ai/history — user's generation history ─────────────────────────
 const getHistory = async (req, res, next) => {
   try {
-    if (isSupabaseActive()) {
-      const { data: history, error } = await supabase
-        .from('ai_generations')
-        .select('*')
-        .eq('user_id', req.user.id)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-      return res.json({ success: true, data: history || [] });
-    }
-
-    // MongoDB Fallback
-    const history = await AiGeneration.find({ user_id: req.user.id })
-      .sort({ createdAt: -1 })
+    const { data: history, error } = await req.supabase
+      .from('ai_generations')
+      .select('*')
+      .eq('user_id', req.user.id)
+      .order('created_at', { ascending: false })
       .limit(50);
-    res.json({ success: true, data: history });
+    if (error) throw error;
+    return res.json({ success: true, data: history || [] });
   } catch (err) {
     next(err);
   }

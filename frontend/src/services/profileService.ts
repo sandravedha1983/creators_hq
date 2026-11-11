@@ -85,8 +85,13 @@ export const updateBrandProfile = async (data: Partial<BrandProfile>) => {
 };
 
 // ─── User-level profile update (name, avatar, onboarding) ────────────────────
-export const updateUserProfile = async (data: { name?: string; avatar?: string; isOnboarded?: boolean }) => {
-  const res = await API.put('/api/auth/profile', data);
+export const updateUserProfile = async (data: { name?: string; avatar?: string; isOnboarded?: boolean; socialHandle?: string }) => {
+  const { isOnboarded, socialHandle, ...profile } = data;
+  const res = await API.put('/api/auth/profile', {
+    ...profile,
+    ...(isOnboarded !== undefined ? { is_onboarded: isOnboarded } : {}),
+    ...(socialHandle !== undefined ? { social_handle: socialHandle } : {})
+  });
   return res.data;
 };
 

@@ -1,14 +1,46 @@
 const express = require('express');
 const router = express.Router();
-const Campaign = require('./models');
-const CampaignApplication = require('./applicationModel');
 const { authenticate, authorize } = require('../../middleware/auth');
 const { supabase } = require('../../config/supabase');
 const { createNotification } = require('../notifications/controllers');
 
-const isSupabaseActive = () => {
-  return supabase && process.env.SUPABASE_URL && !process.env.SUPABASE_URL.includes('dummy-creatorshq');
+const getProfilesById = async (ids, includeEmail = false) => {
+  const uniqueIds = [...new Set(ids.filter(Boolean).map(String))];
+  if (!uniqueIds.length) return new Map();
+
+  const fields = includeEmail ? 'id, name, email, avatar' : 'id, name, avatar';
+  const { data, error } = await supabase.from('profiles').select(fields).in('id', uniqueIds);
+  if (error) throw error;
+  return new Map((data || []).map(profile => [String(profile.id), profile]));
 };
+
+const serializeCampaign = (campaign, profiles = new Map()) => {
+  const brand = profiles.get(String(campaign.brand_id));
+  return {
+    ...campaign,
+    _id: campaign._id || campaign.id,
+    createdAt: campaign.createdAt || campaign.created_at,
+    deliverables: Array.isArray(campaign.deliverables)
+      ? campaign.deliverables.join(', ')
+      : campaign.deliverables || '',
+    requirements: campaign.requirements || '',
+    brand_id: brand
+      ? { ...brand, _id: brand.id }
+      : campaign.brand_id
+  };
+};
+
+const serializeApplication = (application, { campaign, creator } = {}) => ({
+  ...application,
+  _id: application._id || application.id,
+  createdAt: application.createdAt || application.created_at,
+  campaign_id: campaign
+    ? serializeCampaign(campaign)
+    : application.campaign_id,
+  creator_id: creator
+    ? { ...creator, _id: creator.id }
+    : application.creator_id
+});
 
 // ─── Public: list all open campaigns (creators browse) ───────────────────────
 router.get('/campaigns', async (req, res, next) => {
@@ -18,8 +50,7 @@ router.get('/campaigns', async (req, res, next) => {
     const limitNum = Math.min(50, Math.max(1, parseInt(limit) || 20));
     const offset = (pageNum - 1) * limitNum;
 
-    if (isSupabaseActive()) {
-      let query = supabase
+    let query = supabase
         .from('campaigns')
         .select(`
           id,
@@ -29,12 +60,10 @@ router.get('/campaigns', async (req, res, next) => {
           budget,
           niche,
           deliverables,
-          requirements,
           deadline,
           image,
           status,
-          created_at,
-          brand:brand_id(name, email, avatar)
+          created_at
         `, { count: 'exact' })
         .eq('status', 'open');
 
@@ -52,25 +81,9 @@ router.get('/campaigns', async (req, res, next) => {
       const { data: campaigns, error, count } = await query;
       if (error) throw error;
 
-      return res.json({ success: true, data: campaigns || [], total: count || 0, page: pageNum, limit: limitNum });
-    }
-
-    // MongoDB Fallback
-    const query = { status: 'open' };
-    if (niche) query.niche = { $regex: niche, $options: 'i' };
-    if (search) query.$or = [
-      { title: { $regex: search, $options: 'i' } },
-      { description: { $regex: search, $options: 'i' } }
-    ];
-
-    const total = await Campaign.countDocuments(query);
-    const campaigns = await Campaign.find(query)
-      .populate('brand_id', 'name email avatar')
-      .sort({ createdAt: -1 })
-      .skip(offset)
-      .limit(limitNum);
-
-    res.json({ success: true, data: campaigns, total, page: pageNum, limit: limitNum });
+      const profiles = await getProfilesById((campaigns || []).map(campaign => campaign.brand_id));
+      const data = (campaigns || []).map(campaign => serializeCampaign(campaign, profiles));
+    return res.json({ success: true, data, total: count || 0, page: pageNum, limit: limitNum });
   } catch (err) {
     next(err);
   }
@@ -79,20 +92,15 @@ router.get('/campaigns', async (req, res, next) => {
 // ─── Brand: list own campaigns ────────────────────────────────────────────────
 router.get('/campaigns/mine', authenticate, async (req, res, next) => {
   try {
-    if (isSupabaseActive()) {
-      const { data: campaigns, error } = await supabase
+    const { data: campaigns, error } = await req.supabase
         .from('campaigns')
         .select('*')
         .eq('brand_id', req.user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return res.json({ success: true, data: campaigns || [] });
-    }
-
-    // MongoDB Fallback
-    const campaigns = await Campaign.find({ brand_id: req.user.id }).sort({ createdAt: -1 });
-    res.json({ success: true, data: campaigns });
+      const profiles = await getProfilesById((campaigns || []).map(campaign => campaign.brand_id));
+    return res.json({ success: true, data: (campaigns || []).map(campaign => serializeCampaign(campaign, profiles)) });
   } catch (err) {
     next(err);
   }
@@ -101,8 +109,7 @@ router.get('/campaigns/mine', authenticate, async (req, res, next) => {
 // ─── Get single campaign ──────────────────────────────────────────────────────
 router.get('/campaign/:id', async (req, res, next) => {
   try {
-    if (isSupabaseActive()) {
-      const { data: campaign, error } = await supabase
+    const { data: campaign, error } = await supabase
         .from('campaigns')
         .select(`
           id,
@@ -112,24 +119,17 @@ router.get('/campaign/:id', async (req, res, next) => {
           budget,
           niche,
           deliverables,
-          requirements,
           deadline,
           image,
           status,
-          created_at,
-          brand:brand_id(name, email, avatar)
+          created_at
         `)
         .eq('id', req.params.id)
         .single();
 
       if (error || !campaign) return res.status(404).json({ success: false, message: 'Campaign not found' });
-      return res.json({ success: true, data: campaign });
-    }
-
-    // MongoDB Fallback
-    const campaign = await Campaign.findById(req.params.id).populate('brand_id', 'name email avatar');
-    if (!campaign) return res.status(404).json({ success: false, message: 'Campaign not found' });
-    res.json({ success: true, data: campaign });
+      const profiles = await getProfilesById([campaign.brand_id]);
+    return res.json({ success: true, data: serializeCampaign(campaign, profiles) });
   } catch (err) {
     next(err);
   }
@@ -143,8 +143,7 @@ router.post('/campaign', authenticate, authorize('brand', 'admin'), async (req, 
       return res.status(400).json({ success: false, message: 'title, description and budget are required' });
     }
 
-    if (isSupabaseActive()) {
-      const { data: campaign, error } = await supabase
+    const { data: campaign, error } = await req.supabase
         .from('campaigns')
         .insert({
           brand_id: req.user.id,
@@ -152,8 +151,7 @@ router.post('/campaign', authenticate, authorize('brand', 'admin'), async (req, 
           description,
           budget,
           niche: niche || '',
-          deliverables: deliverables || '',
-          requirements: requirements || '',
+          deliverables: deliverables ? [String(deliverables)] : [],
           deadline: deadline || null,
           image: image || '',
           status: status || 'open'
@@ -162,24 +160,8 @@ router.post('/campaign', authenticate, authorize('brand', 'admin'), async (req, 
         .single();
 
       if (error) throw error;
-      return res.status(201).json({ success: true, data: campaign });
-    }
-
-    // MongoDB Fallback
-    const campaign = await Campaign.create({
-      brand_id: req.user.id,
-      title,
-      description,
-      budget,
-      niche: niche || '',
-      deliverables: deliverables || '',
-      requirements: requirements || '',
-      deadline: deadline || undefined,
-      image: image || '',
-      status: status || 'open'
-    });
-
-    res.status(201).json({ success: true, data: campaign });
+      const profiles = await getProfilesById([campaign.brand_id]);
+    return res.status(201).json({ success: true, data: serializeCampaign(campaign, profiles) });
   } catch (err) {
     next(err);
   }
@@ -188,8 +170,7 @@ router.post('/campaign', authenticate, authorize('brand', 'admin'), async (req, 
 // ─── Brand: update own campaign ───────────────────────────────────────────────
 router.put('/campaign/:id', authenticate, authorize('brand', 'admin'), async (req, res, next) => {
   try {
-    if (isSupabaseActive()) {
-      const { data: existing, error: fetchErr } = await supabase
+    const { data: existing, error: fetchErr } = await req.supabase
         .from('campaigns')
         .select('*')
         .eq('id', req.params.id)
@@ -201,13 +182,16 @@ router.put('/campaign/:id', authenticate, authorize('brand', 'admin'), async (re
         return res.status(403).json({ success: false, message: 'Not authorized' });
       }
 
-      const allowed = ['title', 'description', 'budget', 'niche', 'deliverables', 'requirements', 'deadline', 'image', 'status'];
+      const allowed = ['title', 'description', 'budget', 'niche', 'deadline', 'image', 'status'];
       const updates = {};
       allowed.forEach(field => {
         if (req.body[field] !== undefined) updates[field] = req.body[field];
       });
+      if (req.body.deliverables !== undefined) {
+        updates.deliverables = req.body.deliverables ? [String(req.body.deliverables)] : [];
+      }
 
-      const { data: updated, error: updateErr } = await supabase
+      const { data: updated, error: updateErr } = await req.supabase
         .from('campaigns')
         .update(updates)
         .eq('id', req.params.id)
@@ -215,24 +199,8 @@ router.put('/campaign/:id', authenticate, authorize('brand', 'admin'), async (re
         .single();
 
       if (updateErr) throw updateErr;
-      return res.json({ success: true, data: updated });
-    }
-
-    // MongoDB Fallback
-    const campaign = await Campaign.findById(req.params.id);
-    if (!campaign) return res.status(404).json({ success: false, message: 'Campaign not found' });
-
-    if (req.user.role !== 'admin' && String(campaign.brand_id) !== String(req.user.id)) {
-      return res.status(403).json({ success: false, message: 'Not authorized' });
-    }
-
-    const allowed = ['title', 'description', 'budget', 'niche', 'deliverables', 'requirements', 'deadline', 'image', 'status'];
-    allowed.forEach(field => {
-      if (req.body[field] !== undefined) campaign[field] = req.body[field];
-    });
-
-    await campaign.save();
-    res.json({ success: true, data: campaign });
+      const profiles = await getProfilesById([updated.brand_id]);
+    return res.json({ success: true, data: serializeCampaign(updated, profiles) });
   } catch (err) {
     next(err);
   }
@@ -241,8 +209,7 @@ router.put('/campaign/:id', authenticate, authorize('brand', 'admin'), async (re
 // ─── Brand: delete own campaign ───────────────────────────────────────────────
 router.delete('/campaign/:id', authenticate, authorize('brand', 'admin'), async (req, res, next) => {
   try {
-    if (isSupabaseActive()) {
-      const { data: existing, error: fetchErr } = await supabase
+    const { data: existing, error: fetchErr } = await req.supabase
         .from('campaigns')
         .select('*')
         .eq('id', req.params.id)
@@ -254,24 +221,12 @@ router.delete('/campaign/:id', authenticate, authorize('brand', 'admin'), async 
         return res.status(403).json({ success: false, message: 'Not authorized' });
       }
 
-      await supabase.from('campaign_applications').delete().eq('campaign_id', req.params.id);
-      const { error: delErr } = await supabase.from('campaigns').delete().eq('id', req.params.id);
+      const { error: applicationsError } = await req.supabase.from('campaign_applications').delete().eq('campaign_id', req.params.id);
+      if (applicationsError) throw applicationsError;
+      const { error: delErr } = await req.supabase.from('campaigns').delete().eq('id', req.params.id);
       if (delErr) throw delErr;
 
       return res.json({ success: true, message: 'Campaign deleted' });
-    }
-
-    // MongoDB Fallback
-    const campaign = await Campaign.findById(req.params.id);
-    if (!campaign) return res.status(404).json({ success: false, message: 'Campaign not found' });
-
-    if (req.user.role !== 'admin' && String(campaign.brand_id) !== String(req.user.id)) {
-      return res.status(403).json({ success: false, message: 'Not authorized' });
-    }
-
-    await Campaign.deleteOne({ _id: campaign._id });
-    await CampaignApplication.deleteMany({ campaign_id: campaign._id });
-    res.json({ success: true, message: 'Campaign deleted' });
   } catch (err) {
     next(err);
   }
@@ -280,8 +235,7 @@ router.delete('/campaign/:id', authenticate, authorize('brand', 'admin'), async 
 // ─── Creator: apply to campaign ───────────────────────────────────────────────
 router.post('/campaign/:id/apply', authenticate, authorize('creator'), async (req, res, next) => {
   try {
-    if (isSupabaseActive()) {
-      const { data: campaign, error: campErr } = await supabase
+    const { data: campaign, error: campErr } = await req.supabase
         .from('campaigns')
         .select('*')
         .eq('id', req.params.id)
@@ -292,18 +246,19 @@ router.post('/campaign/:id/apply', authenticate, authorize('creator'), async (re
         return res.status(400).json({ success: false, message: 'This campaign is not accepting applications' });
       }
 
-      const { data: existing } = await supabase
+      const { data: existing, error: existingError } = await req.supabase
         .from('campaign_applications')
         .select('id')
         .eq('campaign_id', campaign.id)
         .eq('creator_id', req.user.id)
-        .single();
+        .maybeSingle();
 
+      if (existingError) throw existingError;
       if (existing) {
         return res.status(409).json({ success: false, message: 'You have already applied to this campaign' });
       }
 
-      const { data: application, error: appErr } = await supabase
+      const { data: application, error: appErr } = await req.supabase
         .from('campaign_applications')
         .insert({
           campaign_id: campaign.id,
@@ -324,40 +279,7 @@ router.post('/campaign/:id/apply', authenticate, authorize('creator'), async (re
         `/campaigns`
       );
 
-      return res.status(201).json({ success: true, data: application });
-    }
-
-    // MongoDB Fallback
-    const campaign = await Campaign.findById(req.params.id);
-    if (!campaign) return res.status(404).json({ success: false, message: 'Campaign not found' });
-    if (campaign.status !== 'open') {
-      return res.status(400).json({ success: false, message: 'This campaign is not accepting applications' });
-    }
-
-    const existing = await CampaignApplication.findOne({
-      campaign_id: campaign._id,
-      creator_id: req.user.id
-    });
-    if (existing) {
-      return res.status(409).json({ success: false, message: 'You have already applied to this campaign' });
-    }
-
-    const application = await CampaignApplication.create({
-      campaign_id: campaign._id,
-      creator_id: req.user.id,
-      message: req.body.message || ''
-    });
-
-    // Notify Brand
-    await createNotification(
-      campaign.brand_id,
-      'New Campaign Application',
-      `A creator applied to your campaign "${campaign.title}".`,
-      'application',
-      `/campaigns`
-    );
-
-    res.status(201).json({ success: true, data: application });
+    return res.status(201).json({ success: true, data: serializeApplication(application) });
   } catch (err) {
     next(err);
   }
@@ -366,8 +288,7 @@ router.post('/campaign/:id/apply', authenticate, authorize('creator'), async (re
 // ─── Brand: get applications for own campaign ─────────────────────────────────
 router.get('/campaign/:id/applications', authenticate, authorize('brand', 'admin'), async (req, res, next) => {
   try {
-    if (isSupabaseActive()) {
-      const { data: campaign, error: campErr } = await supabase
+    const { data: campaign, error: campErr } = await req.supabase
         .from('campaigns')
         .select('*')
         .eq('id', req.params.id)
@@ -379,35 +300,27 @@ router.get('/campaign/:id/applications', authenticate, authorize('brand', 'admin
         return res.status(403).json({ success: false, message: 'Not authorized' });
       }
 
-      const { data: applications, error: appErr } = await supabase
+      const { data: applications, error: appErr } = await req.supabase
         .from('campaign_applications')
         .select(`
           id,
           message,
           status,
           created_at,
-          creator:creator_id(name, email, avatar)
+          creator_id
         `)
         .eq('campaign_id', campaign.id)
         .order('created_at', { ascending: false });
 
       if (appErr) throw appErr;
-      return res.json({ success: true, data: applications || [] });
-    }
-
-    // MongoDB Fallback
-    const campaign = await Campaign.findById(req.params.id);
-    if (!campaign) return res.status(404).json({ success: false, message: 'Campaign not found' });
-
-    if (req.user.role !== 'admin' && String(campaign.brand_id) !== String(req.user.id)) {
-      return res.status(403).json({ success: false, message: 'Not authorized' });
-    }
-
-    const applications = await CampaignApplication.find({ campaign_id: campaign._id })
-      .populate('creator_id', 'name email avatar')
-      .sort({ createdAt: -1 });
-
-    res.json({ success: true, data: applications });
+      const creators = await getProfilesById(
+        (applications || []).map(application => application.creator_id),
+        true
+      );
+      const data = (applications || []).map(application =>
+        serializeApplication(application, { creator: creators.get(String(application.creator_id)) })
+      );
+    return res.json({ success: true, data });
   } catch (err) {
     next(err);
   }
@@ -421,8 +334,7 @@ router.patch('/campaign/:id/application/:appId', authenticate, authorize('brand'
       return res.status(400).json({ success: false, message: 'status must be approved or rejected' });
     }
 
-    if (isSupabaseActive()) {
-      const { data: campaign, error: campErr } = await supabase
+    const { data: campaign, error: campErr } = await req.supabase
         .from('campaigns')
         .select('*')
         .eq('id', req.params.id)
@@ -434,10 +346,11 @@ router.patch('/campaign/:id/application/:appId', authenticate, authorize('brand'
         return res.status(403).json({ success: false, message: 'Not authorized' });
       }
 
-      const { data: application, error: appErr } = await supabase
+      const { data: application, error: appErr } = await req.supabase
         .from('campaign_applications')
         .update({ status })
         .eq('id', req.params.appId)
+        .eq('campaign_id', campaign.id)
         .select()
         .single();
 
@@ -452,35 +365,7 @@ router.patch('/campaign/:id/application/:appId', authenticate, authorize('brand'
         '/campaigns'
       );
 
-      return res.json({ success: true, data: application });
-    }
-
-    // MongoDB Fallback
-    const campaign = await Campaign.findById(req.params.id);
-    if (!campaign) return res.status(404).json({ success: false, message: 'Campaign not found' });
-
-    if (req.user.role !== 'admin' && String(campaign.brand_id) !== String(req.user.id)) {
-      return res.status(403).json({ success: false, message: 'Not authorized' });
-    }
-
-    const application = await CampaignApplication.findByIdAndUpdate(
-      req.params.appId,
-      { status },
-      { new: true }
-    );
-
-    if (!application) return res.status(404).json({ success: false, message: 'Application not found' });
-
-    // Notify Creator
-    await createNotification(
-      application.creator_id,
-      `Application ${status === 'approved' ? 'Approved! 🎉' : 'Update'}`,
-      `Your application for campaign "${campaign.title}" was ${status}.`,
-      'application',
-      '/campaigns'
-    );
-
-    res.json({ success: true, data: application });
+    return res.json({ success: true, data: serializeApplication(application) });
   } catch (err) {
     next(err);
   }
@@ -489,8 +374,7 @@ router.patch('/campaign/:id/application/:appId', authenticate, authorize('brand'
 // ─── Creator: get own applications ────────────────────────────────────────────
 router.get('/my-applications', authenticate, authorize('creator'), async (req, res, next) => {
   try {
-    if (isSupabaseActive()) {
-      const { data: applications, error } = await supabase
+    const { data: applications, error } = await req.supabase
         .from('campaign_applications')
         .select(`
           id,
@@ -503,14 +387,10 @@ router.get('/my-applications', authenticate, authorize('creator'), async (req, r
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return res.json({ success: true, data: applications || [] });
-    }
-
-    // MongoDB Fallback
-    const applications = await CampaignApplication.find({ creator_id: req.user.id })
-      .populate('campaign_id')
-      .sort({ createdAt: -1 });
-    res.json({ success: true, data: applications });
+      const data = (applications || []).map(application =>
+        serializeApplication(application, { campaign: application.campaign })
+      );
+    return res.json({ success: true, data });
   } catch (err) {
     next(err);
   }

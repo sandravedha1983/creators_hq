@@ -1,4 +1,5 @@
 import axios from "axios";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 axios.defaults.timeout = 8000;
 
@@ -7,29 +8,21 @@ const API = axios.create({
     timeout: 8000
 });
 
-// Send Token in Requests
-API.interceptors.request.use((config) => {
-    const token = localStorage.getItem("token");
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+API.interceptors.request.use(async (config) => {
+    if (isSupabaseConfigured()) {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        if (session?.access_token) {
+            config.headers.Authorization = `Bearer ${session.access_token}`;
+        }
     }
     return config;
 });
 
-// Handle Response Errors globally
 API.interceptors.response.use(
     (response) => response,
     (error) => {
-        const config = error.config;
-        const isAuthEndpoint = config?.url?.includes('/api/auth/login') || 
-                               config?.url?.includes('/api/login') ||
-                               config?.url?.includes('/api/auth/register') ||
-                               config?.url?.includes('/api/signup') ||
-                               config?.url?.includes('/api/auth/admin-login') ||
-                               config?.url?.includes('/api/admin/login');
-
-        if (error.response?.status === 401 && !isAuthEndpoint) {
-            localStorage.removeItem("token");
+        if (error.response?.status === 401) {
             window.dispatchEvent(new CustomEvent('auth:expired'));
         }
         return Promise.reject(error);
