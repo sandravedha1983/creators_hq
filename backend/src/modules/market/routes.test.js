@@ -1,8 +1,14 @@
-jest.mock('./models', () => ({}));
-jest.mock('./applicationModel', () => ({}));
 jest.mock('../../middleware/auth', () => ({
   authenticate: (req, res, next) => {
-    req.user = { id: 'brand-1', role: 'brand' };
+    req.user = {
+      id: 'brand-1',
+      role: 'brand',
+      isVerified: true,
+      isSuspended: false,
+      isBlocked: false,
+      verificationStatus: 'verified'
+    };
+    req.supabase = require('../../config/supabase').supabase;
     next();
   },
   authorize: () => (req, res, next) => next()

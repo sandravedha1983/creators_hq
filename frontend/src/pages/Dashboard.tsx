@@ -16,13 +16,15 @@ import { getCreatorDashboard } from '@/services/dashboardService';
 import { useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { MEMBERSHIP_UI_ENABLED } from '@/config/planVisibility';
+import { Link } from 'react-router-dom';
 
 export default function Dashboard() {
-    const { user } = useAuth();
+    const { user, refreshProfile } = useAuth();
     const [statsData, setStatsData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        void refreshProfile().catch(err => console.error('Failed to refresh creator verification status', err));
         const fetchStats = async () => {
             try {
                 const res = await getCreatorDashboard();
@@ -35,7 +37,7 @@ export default function Dashboard() {
             }
         };
         fetchStats();
-    }, []);
+    }, [refreshProfile]);
 
     const isConnected = statsData?.instagram?.isConnected;
     const growthScore = statsData?.growthScore || 0;
@@ -47,6 +49,15 @@ export default function Dashboard() {
 
     return (
         <div className="animate-fade-in pb-20 space-y-12">
+            {user?.verificationStatus !== 'verified' && (
+                <Card className="flex flex-col gap-3 border-amber-400/20 bg-amber-400/5 p-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <p className="font-semibold text-heaven-text">Verification: {user?.verificationStatus?.replaceAll('_', ' ') || 'not submitted'}</p>
+                        <p className="mt-1 text-sm text-heaven-muted">You can use your dashboard and complete your profile. Admin approval is required for marketplace transactions.</p>
+                    </div>
+                    <Link to="/verify-account" className="text-sm font-semibold text-primary">Open Verification Center</Link>
+                </Card>
+            )}
             {/* Header Area */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
                 <div>

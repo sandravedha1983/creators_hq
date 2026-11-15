@@ -16,9 +16,61 @@ const getAllUsers = async (req, res, next) => {
 
 const deleteUser = async (req, res, next) => {
   try {
+    if (req.params.id === req.user.id) {
+      return res.status(400).json({ success: false, message: 'You cannot delete the currently signed-in Admin account.' });
+    }
+    const { data: target, error: targetError } = await supabase
+      .from('profiles')
+      .select('id, role, is_blocked')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (targetError) throw targetError;
+    if (!target) return res.status(404).json({ success: false, message: 'User not found' });
+    if (target.role === 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin accounts cannot be deleted from user management.' });
+    }
+    const { data: documents, error: documentsError } = await supabase
+      .from('verification_documents')
+      .select('storage_path')
+      .eq('user_id', target.id);
+    if (documentsError) throw documentsError;
+
+    const { error: auditError } = await supabase.from('audit_logs').insert({
+      actor_id: req.user.id,
+      action: 'admin_user_delete_attempted',
+      entity_type: 'profile',
+      entity_id: target.id,
+      details: { target_user_id: target.id, target_role: target.role }
+    });
+    if (auditError) throw auditError;
+
     const { error } = await supabase.auth.admin.deleteUser(req.params.id);
     if (error) throw error;
-    return res.json({ success: true, message: 'User deleted successfully' });
+    let documentCleanupComplete = true;
+    if (documents?.length) {
+      const { error: storageError } = await supabase.storage
+        .from('verification_docs')
+        .remove(documents.map(document => document.storage_path));
+      if (storageError) {
+        documentCleanupComplete = false;
+        console.error('[ADMIN USER DOCUMENT CLEANUP ERROR]', storageError.message);
+      }
+    }
+    const { error: completedAuditError } = await supabase.from('audit_logs').insert({
+      actor_id: req.user.id,
+      action: 'admin_user_deleted',
+      entity_type: 'profile',
+      entity_id: target.id,
+      details: { target_user_id: target.id, target_role: target.role, completed: true }
+    });
+    if (completedAuditError) throw completedAuditError;
+    return res.json({
+      success: true,
+      message: documentCleanupComplete
+        ? 'User deleted successfully'
+        : 'User deleted, but private verification document cleanup requires follow-up.',
+      data: { documentCleanupComplete }
+    });
   } catch (error) {
     return next(error);
   }
@@ -26,27 +78,27 @@ const deleteUser = async (req, res, next) => {
 
 const blockUser = async (req, res, next) => {
   try {
-    const { data: profile, error: fetchError } = await supabase
-      .from('profiles')
-      .select('is_blocked')
-      .eq('id', req.params.id)
-      .single();
-
-    if (fetchError?.code === 'PGRST116' || !profile) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+    if (req.params.id === req.user.id) {
+      return res.status(400).json({ success: false, message: 'You cannot block or suspend the currently signed-in Admin account.' });
     }
-    if (fetchError) throw fetchError;
-
-    const isBlocked = !profile.is_blocked;
-    const { error } = await supabase
-      .from('profiles')
-      .update({ is_blocked: isBlocked, is_suspended: isBlocked })
-      .eq('id', req.params.id);
-
-    if (error) throw error;
+    const { data: profile, error } = await supabase.rpc('set_account_block_status', {
+      p_actor_id: req.user.id,
+      p_target_id: req.params.id
+    });
+    if (error) {
+      const message = error.message?.toLowerCase() || '';
+      if (message.includes('user not found')) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
+      if (message.includes('admin accounts cannot be blocked') || message.includes('cannot block their own')) {
+        return res.status(403).json({ success: false, message: error.message });
+      }
+      throw error;
+    }
     return res.json({
       success: true,
-      message: `User ${isBlocked ? 'blocked/suspended' : 'unblocked'} successfully`
+      message: `User ${profile.is_blocked ? 'blocked' : 'unblocked'} successfully`,
+      data: { id: profile.id, is_blocked: profile.is_blocked, is_suspended: profile.is_suspended }
     });
   } catch (error) {
     return next(error);

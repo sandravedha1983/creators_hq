@@ -13,7 +13,7 @@ export default function Signup() {
     const [email, setEmail] = useState('');
     const [name, setName] = useState('');
     const [password, setPassword] = useState('');
-    const [role, setRole] = useState<UserRole>('creator');
+    const [role, setRole] = useState<'creator' | 'brand'>('creator');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { signup, signInWithOAuth } = useAuth();
@@ -54,13 +54,13 @@ export default function Signup() {
 
     const handleSocialLogin = async (service: 'google' | 'linkedin') => {
         try {
-            await signInWithOAuth(service);
+            await signInWithOAuth(service, role);
         } catch (err: any) {
             toast.error(`Social signup failed: ${err.message || 'Please use email registration'}`);
         }
     };
 
-    const roles: { id: UserRole; label: string; icon: any; desc: string }[] = [
+    const roles: { id: 'creator' | 'brand'; label: string; icon: any; desc: string }[] = [
         { id: 'creator', label: 'Creator', icon: User, desc: 'Manage content & audience' },
         { id: 'brand', label: 'Brand', icon: Briefcase, desc: 'Find creators & run campaigns' }
     ];

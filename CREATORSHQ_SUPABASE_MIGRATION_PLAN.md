@@ -5,6 +5,8 @@
 **Author:** Lead Software Architect & Senior Full-Stack Engineer  
 **Date:** October 14, 2026  
 
+> **Historical plan:** The application runtime now uses Supabase Auth and Supabase PostgreSQL. MongoDB references below describe the legacy architecture and are retained for migration context; this document is not an operational runbook.
+
 ---
 
 ## 1. Executive Summary & Objective

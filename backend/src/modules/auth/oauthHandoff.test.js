@@ -170,7 +170,7 @@ describe('OAuth browser-bound handoff', () => {
       .rejects.toThrow('browser binding secret');
   });
 
-  it('rejects a Passport Mongo id without attempting an implicit Supabase mapping', async () => {
+  it('rejects a legacy non-UUID identity without attempting an implicit Supabase mapping', async () => {
     supabase.from.mockReturnValueOnce(mockProfileLookup(null));
     const legacyToken = jwt.sign(
       { id: '64b64c56e2194f7c09d00001', role: 'creator' },
@@ -194,7 +194,7 @@ describe('OAuth browser-bound handoff', () => {
     expect(supabase.from).toHaveBeenCalledWith('profiles');
   });
 
-  it('uses the Supabase profile role instead of the Passport role claim', async () => {
+  it('uses the Supabase profile role instead of the untrusted token role claim', async () => {
     supabase.from
       .mockReturnValueOnce(mockProfileLookup({
         id: 'b6f4707e-3550-4df8-864e-9fd37b9e0304',

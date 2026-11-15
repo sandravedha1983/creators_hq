@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
-  LayoutDashboard, Users, CreditCard, BarChart2,
+  LayoutDashboard, Users, CreditCard, BarChart2, FileCheck2,
   Megaphone, Target, Shield, LogOut, Zap
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -17,6 +17,7 @@ const navGroups = [
     label: 'Management',
     items: [
       { to: '/users', icon: <Users size={16} />, label: 'Users', badge: null },
+      { to: '/verification', icon: <FileCheck2 size={16} />, label: 'Verification' },
       { to: '/subscriptions', icon: <CreditCard size={16} />, label: 'Subscriptions' },
       { to: '/campaigns', icon: <Megaphone size={16} />, label: 'Campaigns' },
       { to: '/leads', icon: <Target size={16} />, label: 'Leads' },

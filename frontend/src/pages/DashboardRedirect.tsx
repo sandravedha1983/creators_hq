@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { Spinner } from "@/components/ui/Spinner";
+import API from "@/services/api";
+import { useAuth } from '@/context/AuthContext';
 
 const roleRedirects: Record<string, string> = {
   creator: "/creator-dashboard",
@@ -11,6 +13,7 @@ const roleRedirects: Record<string, string> = {
 
 export default function DashboardRedirect() {
   const navigate = useNavigate();
+  const { refreshProfile } = useAuth();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -23,6 +26,29 @@ export default function DashboardRedirect() {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
         if (!session?.user) throw new Error("No Supabase session was created.");
+
+        const signupCode = sessionStorage.getItem('creatorshq_oauth_signup_code');
+        const browserBinding = sessionStorage.getItem('creatorshq_oauth_signup_binding');
+        if (signupCode && browserBinding) {
+          await API.post('/api/auth/oauth-signup-role-intents/consume', {
+            code: signupCode,
+            browserBinding
+          });
+          sessionStorage.removeItem('creatorshq_oauth_signup_code');
+          sessionStorage.removeItem('creatorshq_oauth_signup_binding');
+          await refreshProfile();
+          if (active) {
+            const { data: updatedProfile, error: updatedProfileError } = await supabase
+              .from("profiles")
+              .select("role")
+              .eq("id", session.user.id)
+              .single();
+            if (updatedProfileError) throw updatedProfileError;
+            if (!updatedProfile || !roleRedirects[updatedProfile.role]) {
+              throw new Error("An authoritative account profile is required.");
+            }
+          }
+        }
 
         const { data: profile, error: profileError } = await supabase
           .from("profiles")

@@ -9,9 +9,12 @@ import { useAppContext } from '@/context/AppContext';
 import { cn } from '@/utils/cn';
 import { getBrandDashboard } from '@/services/dashboardService';
 import { toast } from 'react-hot-toast';
+import { Link } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 
 
 export default function BrandDashboard() {
+    const { user, refreshProfile } = useAuth();
     const [activeTab, setActiveTab] = useState<'campaigns' | 'creators'>('campaigns');
     const navigate = useNavigate();
     const { campaigns } = useAppContext();
@@ -20,6 +23,7 @@ export default function BrandDashboard() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        void refreshProfile().catch(err => console.error('Failed to refresh brand verification status', err));
         const fetchStats = async () => {
             try {
                 const res = await getBrandDashboard();
@@ -42,7 +46,7 @@ export default function BrandDashboard() {
         Promise.all([fetchStats(), fetchCreators()]).finally(() => {
             setLoading(false);
         });
-    }, []);
+    }, [refreshProfile]);
 
     const myCampaigns = campaigns;
     // Fallback to local calculation if API fails or is empty, but prioritize API
@@ -50,6 +54,15 @@ export default function BrandDashboard() {
 
     return (
         <div className="space-y-16 animate-fade-in pb-20 max-w-7xl mx-auto">
+            {user?.verificationStatus !== 'verified' && (
+                <Card className="flex flex-col gap-3 border-amber-400/20 bg-amber-400/5 p-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <p className="font-semibold text-heaven-text">Verification: {user?.verificationStatus?.replaceAll('_', ' ') || 'not submitted'}</p>
+                        <p className="mt-1 text-sm text-heaven-muted">Your dashboard and profile remain available. Campaign publishing and marketplace transactions require Admin approval.</p>
+                    </div>
+                    <Link to="/verify-account" className="text-sm font-semibold text-primary">Open Verification Center</Link>
+                </Card>
+            )}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-12 mb-12">
                 <div className="space-y-4">
                     <h1 className="text-5xl font-bold text-heaven-text tracking-tight uppercase cursor-default leading-none">Brand Compass</h1>

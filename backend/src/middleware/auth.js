@@ -25,7 +25,7 @@ const authenticate = async (req, res, next) => {
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('id, email, role, plan, is_verified, is_onboarded, is_blocked, is_suspended')
+      .select('id, email, role, plan, is_verified, is_onboarded, is_blocked, is_suspended, verification_status')
       .eq('id', data.user.id)
       .maybeSingle();
 
@@ -46,7 +46,10 @@ const authenticate = async (req, res, next) => {
       role: profile.role,
       plan: profile.plan || 'free',
       isVerified: profile.is_verified,
-      isOnboarded: profile.is_onboarded
+      isOnboarded: profile.is_onboarded,
+      isBlocked: profile.is_blocked,
+      isSuspended: profile.is_suspended,
+      verificationStatus: profile.verification_status
     };
     req.supabase = createUserClient(token);
     return next();

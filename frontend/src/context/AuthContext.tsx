@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { updateUserProfile } from '@/services/profileService';
+import API from '@/services/api';
 
 export type UserRole = 'creator' | 'brand' | 'admin';
 
@@ -16,7 +17,7 @@ export interface User {
     bio?: string;
     location?: string;
     avatar?: string;
-    verificationStatus?: 'not_submitted' | 'pending' | 'verified' | 'rejected';
+    verificationStatus?: 'not_submitted' | 'pending' | 'under_review' | 'additional_information_required' | 'verified' | 'rejected' | 'suspended';
     verificationCode?: string;
     socials?: {
         instagram?: { url?: string; username?: string; verified?: boolean };
@@ -37,11 +38,12 @@ interface AuthContextType {
     isAuthenticated: boolean;
     isVerified: boolean;
     isInitializing: boolean;
+    refreshProfile: () => Promise<User>;
     otp: string | null;
     login: (email: string, password: string) => Promise<{ requiresVerification: boolean; role?: UserRole }>;
     adminLogin: (email: string, password: string) => Promise<void>;
     signup: (email: string, name: string, role: UserRole, password: string) => Promise<void>;
-    signInWithOAuth: (provider: 'google' | 'linkedin') => Promise<void>;
+    signInWithOAuth: (provider: 'google' | 'linkedin', signupRole?: 'creator' | 'brand') => Promise<void>;
     verifyOtp: (otp: string) => Promise<boolean>;
     resetPassword: (email: string) => Promise<void>;
     updatePassword: (password: string) => Promise<void>;
@@ -97,17 +99,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             isOnboarded: profile.is_onboarded,
             avatar: profile.avatar || '',
             verificationStatus: profile.verification_status || 'not_submitted',
-            verificationCode: profile.verification_code || '',
             socialHandle: profile.social_handle || '',
             socials: profile.socials || {}
         };
 
         setUser(mappedUser);
         setIsAuthenticated(true);
-        setIsVerified(true);
+        const accountIsVerified = profile.verification_status === 'verified' && profile.is_verified === true;
+        setIsVerified(accountIsVerified);
         localStorage.setItem('creatorshq_user', JSON.stringify(mappedUser));
         localStorage.setItem('creatorshq_auth', 'true');
-        localStorage.setItem('creatorshq_verified', 'true');
+        localStorage.setItem('creatorshq_verified', String(accountIsVerified));
         localStorage.setItem('role', mappedUser.role);
         notifyAuthChanged();
         return mappedUser;
@@ -225,13 +227,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         notifyAuthChanged();
     }, [syncSupabaseProfile]);
 
-    const signInWithOAuth = useCallback(async (provider: 'google' | 'linkedin') => {
+    const signInWithOAuth = useCallback(async (provider: 'google' | 'linkedin', signupRole?: 'creator' | 'brand') => {
         requireSupabase();
+        sessionStorage.removeItem('creatorshq_oauth_signup_code');
+        sessionStorage.removeItem('creatorshq_oauth_signup_binding');
+        if (signupRole) {
+            const random = new Uint8Array(32);
+            window.crypto.getRandomValues(random);
+            const browserBinding = Array.from(random, value => value.toString(16).padStart(2, '0')).join('');
+            const { data: intentResponse } = await API.post('/api/auth/oauth-signup-role-intents', {
+                role: signupRole,
+                browserBinding
+            });
+            sessionStorage.setItem('creatorshq_oauth_signup_code', intentResponse.data.code);
+            sessionStorage.setItem('creatorshq_oauth_signup_binding', browserBinding);
+        }
+
         const { error } = await supabase.auth.signInWithOAuth({
             provider: provider === 'linkedin' ? 'linkedin_oidc' : 'google',
             options: { redirectTo: `${window.location.origin}/dashboard-redirect` }
         });
-        if (error) throw error;
+        if (error) {
+            sessionStorage.removeItem('creatorshq_oauth_signup_code');
+            sessionStorage.removeItem('creatorshq_oauth_signup_binding');
+            throw error;
+        }
     }, []);
 
     const verifyOtp = useCallback(async (inputOtp: string): Promise<boolean> => {
@@ -280,6 +300,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (error) throw error;
     }, []);
 
+    const refreshProfile = useCallback(async () => {
+        requireSupabase();
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        if (!session?.user) throw new Error('No active Supabase session is available.');
+        return syncSupabaseProfile(session.user);
+    }, [syncSupabaseProfile]);
+
     const updateProfile = useCallback(async (updates: Partial<User>) => {
         if (!user) throw new Error('User is not authenticated.');
         const payload: { name?: string; avatar?: string; isOnboarded?: boolean; socialHandle?: string } = {};
@@ -303,6 +331,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             isAuthenticated,
             isVerified,
             isInitializing,
+            refreshProfile,
             otp: null,
             login,
             adminLogin,

@@ -1,5 +1,6 @@
 const express = require('express');
 const authController = require('./controllers');
+const oauthSignupRole = require('./oauthSignupRole');
 const { authenticate } = require('../../middleware/auth');
 const { exchangeOAuthHandoff } = require('./oauthHandoff');
 const {
@@ -56,6 +57,8 @@ const rejectInvalidOAuthState = (req, res, provider) => {
   return null;
 };
 
+router.post('/oauth-signup-role-intents', oauthSignupRole.createIntent);
+router.post('/oauth-signup-role-intents/consume', authenticate, oauthSignupRole.consumeIntent);
 router.get('/profile', authenticate, authController.getProfile);
 router.put('/profile', authenticate, authController.updateProfile);
 

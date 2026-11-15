@@ -1,181 +1,281 @@
-import React, { useState, useEffect } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { submitVerification, getVerificationStatus } from '@/services/authService';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { ShieldCheck, Instagram, CheckCircle, Clock, AlertTriangle, ArrowRight, RefreshCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { verifyCreator, checkVerification, getDashboardData } from '@/api';
+
+type VerificationState = {
+    status: string;
+    isVerified: boolean;
+    isSuspended: boolean;
+    request: { decision_reason?: string | null } | null;
+};
+
+const initialCreator = {
+    full_name: '',
+    niche: '',
+    location: '',
+    portfolio: '',
+    website: '',
+    social_links: { instagram: '', youtube: '', tiktok: '', linkedin: '', twitter: '' }
+};
+
+const initialBrand = {
+    company_name: '',
+    business_email: '',
+    website: '',
+    industry: '',
+    description: '',
+    representative_name: '',
+    location: '',
+    social_links: { linkedin: '', instagram: '', twitter: '' }
+};
+
+const statusLabels: Record<string, string> = {
+    not_submitted: 'Not submitted',
+    pending: 'Pending Admin review',
+    under_review: 'Under review',
+    additional_information_required: 'Additional information required',
+    verified: 'Verified',
+    rejected: 'Not approved',
+    suspended: 'Suspended'
+};
 
 export default function VerificationPage() {
-    const { user, updateProfile } = useAuth();
-    const [profileLink, setProfileLink] = useState('');
-    const [verificationCode, setVerificationCode] = useState(user?.verificationCode || '');
-    const [isLoading, setIsLoading] = useState(false);
-    const [step, setStep] = useState<'link' | 'code'>(user?.verificationCode ? 'code' : 'link');
-    const [status, setStatus] = useState(user?.verificationStatus || 'not_submitted');
+    const { user, refreshProfile } = useAuth();
     const navigate = useNavigate();
+    const [state, setState] = useState<VerificationState>({
+        status: user?.verificationStatus || 'not_submitted',
+        isVerified: false,
+        isSuspended: false,
+        request: null
+    });
+    const [creator, setCreator] = useState({ ...initialCreator, full_name: user?.name || '' });
+    const [brand, setBrand] = useState({ ...initialBrand, business_email: user?.email || '' });
+    const [documents, setDocuments] = useState<File[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [loadingStatus, setLoadingStatus] = useState(true);
 
-    useEffect(() => {
-        if (user?.verificationStatus === 'verified') {
-            const dashboardPath = user?.role === 'brand' ? '/brand-dashboard' : 
-                                user?.role === 'admin' ? '/admin/dashboard' : '/creator-dashboard';
-            navigate(dashboardPath);
+    const loadStatus = async () => {
+        setLoadingStatus(true);
+        try {
+            const response = await getVerificationStatus();
+            setState(response.data);
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Could not load verification status.');
+        } finally {
+            setLoadingStatus(false);
         }
-    }, [user, navigate]);
+    };
 
-    const handleGenerateCode = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!profileLink) {
-            toast.error("Profile link is required for identification.");
+    useEffect(() => { void loadStatus(); }, []);
+
+    const submit = async (event: FormEvent) => {
+        event.preventDefault();
+        if (!user || documents.length === 0) {
+            toast.error('Upload at least one supporting document.');
             return;
         }
-
-        setIsLoading(true);
+        setLoading(true);
+        const formData = new FormData();
+        formData.append('application', JSON.stringify(user.role === 'brand' ? brand : creator));
+        documents.forEach(file => formData.append('documents', file));
         try {
-            const res = await verifyCreator(profileLink);
-            if (res.success) {
-                setVerificationCode(res.code);
-                setStep('code');
-                updateProfile({ verificationCode: res.code, socialHandle: profileLink });
-                toast.success("Verification code generated.");
+            const response = await submitVerification(formData);
+            setState(current => ({
+                ...current,
+                status: response.data.status,
+                isVerified: false,
+                request: response.data.request
+            }));
+            if (response.notificationDelivered === false) {
+                  toast.error('Application submitted, but we could not send the notification. Please check your status here.');
+            } else {
+                  toast.success('Application submitted for mandatory Admin review.');
             }
-        } catch (err: any) {
-            toast.error(err.response?.data?.message || "Failed to generate code.");
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleCheckVerification = async () => {
-        setIsLoading(true);
-        try {
-            const res = await checkVerification(profileLink || user?.socialHandle || '', verificationCode);
-            if (res.success) {
-                toast.success("Identity Verified! Welcome to CreatorsHQ.");
-                updateProfile({ verificationStatus: 'verified' });
-                setStatus('verified');
-                setTimeout(() => {
-                    const dashboardPath = user?.role === 'brand' ? '/brand-dashboard' : 
-                                        user?.role === 'admin' ? '/admin-dashboard' : '/creator-dashboard';
-                    navigate(dashboardPath);
-                }, 2000);
+            await loadStatus();
+            try {
+                await refreshProfile();
+            } catch (profileError) {
+                console.error('Verification was submitted, but the profile status could not be refreshed.', profileError);
+                toast.error('Application submitted. Reload the page if your account status does not update.');
             }
-        } catch (err: any) {
-            toast.error(err.response?.data?.message || "Verification failed. Ensure the code is in your bio.");
+        } catch (error: any) {
+            const message = error.response?.data?.errors?.join(' ') ||
+                error.response?.data?.message ||
+                'Could not submit your verification application.';
+            toast.error(message);
         } finally {
-            setIsLoading(false);
+            setLoading(false);
         }
     };
 
-    const renderStatus = () => {
-        if (status === 'verified') {
-            return (
-                <div className="text-center py-10 space-y-6">
-                    <CheckCircle className="w-20 h-20 text-green-500 mx-auto" />
-                    <h2 className="text-3xl font-bold text-heaven-text">Identity Verified</h2>
-                    <p className="text-heaven-muted">Your neural link is fully established. Redirecting to dashboard...</p>
-                </div>
-            );
+    const canSubmit = !state.isSuspended &&
+        ['not_submitted', 'rejected', 'additional_information_required'].includes(state.status);
+    const setCreatorValue = (key: string, value: string) =>
+        setCreator(current => ({ ...current, [key]: value }));
+    const setBrandValue = (key: string, value: string) =>
+        setBrand(current => ({ ...current, [key]: value }));
+    const setSocial = (role: 'creator' | 'brand', key: string, value: string) => {
+        if (role === 'creator') {
+            setCreator(current => ({ ...current, social_links: { ...current.social_links, [key]: value } }));
+        } else {
+            setBrand(current => ({ ...current, social_links: { ...current.social_links, [key]: value } }));
         }
-
-        if (step === 'link') {
-            return (
-                <form onSubmit={handleGenerateCode} className="space-y-8">
-                    <div className="space-y-4">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-heaven-muted block ml-2">Platform Profile Link</label>
-                        <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none text-heaven-muted">
-                                <Instagram className="w-4 h-4" />
-                            </div>
-                            <input
-                                type="text"
-                                placeholder="https://instagram.com/yourhandle"
-                                className="w-full bg-black/40 border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-white focus:border-primary/50 outline-none transition-all"
-                                value={profileLink}
-                                onChange={(e) => setProfileLink(e.target.value)}
-                                required
-                            />
-                        </div>
-                        <p className="text-[10px] text-heaven-muted italic px-2">Provide the link to your primary social account (Instagram, YouTube, etc.)</p>
-                    </div>
-                    <Button 
-                        type="submit" 
-                        variant="primary" 
-                        className="w-full py-6 rounded-3xl text-[12px] font-black uppercase tracking-[0.3em]"
-                        isLoading={isLoading}
-                    >
-                        Initiate Verification <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                </form>
-            );
-        }
-
-        return (
-            <div className="space-y-10">
-                <div className="space-y-4">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-primary block">Identity Flux Code</label>
-                    <div className="p-8 bg-primary/10 border border-primary/20 rounded-3xl text-center relative group">
-                        <span className="text-3xl font-black text-white tracking-[0.3em]">{verificationCode}</span>
-                        <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl pointer-events-none" />
-                    </div>
-                    <div className="p-6 bg-white/[0.02] border border-white/10 rounded-2xl space-y-3">
-                        <p className="text-sm text-heaven-text font-medium">Follow these steps:</p>
-                        <ul className="text-xs text-heaven-muted space-y-2 list-disc pl-4">
-                            <li>Copy the code above.</li>
-                            <li>Add it to your bio on the linked social platform.</li>
-                            <li>Wait a few seconds for propagation.</li>
-                            <li>Click the verify button below.</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div className="flex gap-4">
-                    <Button 
-                        variant="primary" 
-                        className="flex-1 py-6 rounded-3xl text-[12px] font-black uppercase tracking-[0.3em]"
-                        onClick={handleCheckVerification}
-                        isLoading={isLoading}
-                    >
-                        Verify Now
-                    </Button>
-                    <Button 
-                        variant="secondary" 
-                        className="px-8 rounded-3xl"
-                        onClick={() => setStep('link')}
-                        disabled={isLoading}
-                    >
-                        <RefreshCw className="w-5 h-5" />
-                    </Button>
-                </div>
-            </div>
-        );
     };
+
+    const dashboardPath = user?.role === 'brand' ? '/brand-dashboard' : '/creator-dashboard';
 
     return (
-        <div className="min-h-screen bg-dark flex items-center justify-center p-6 relative overflow-hidden font-sans">
-            <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] -mr-[250px] -mt-[250px]" />
-            
-            <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="w-full max-w-2xl relative z-10"
-            >
-                <Card className="p-8 sm:p-16 bg-[#050810]/90 border border-white/[0.08] backdrop-blur-3xl rounded-[3rem] shadow-glass relative">
-                    <div className="absolute top-0 inset-x-0 h-1.5 bg-primary rounded-t-full" />
-                    
-                    <div className="flex flex-col items-center mb-12 text-center">
-                        <div className="w-20 h-20 bg-primary/10 border border-primary/20 rounded-3xl flex items-center justify-center text-primary mb-8 shadow-glass">
-                            <ShieldCheck className="w-10 h-10" />
+        <div className="min-h-screen bg-dark flex items-center justify-center p-4 sm:p-8">
+            <Card className="w-full max-w-3xl p-6 sm:p-10 bg-[#050810]/90 border border-white/10">
+                <header className="mb-8">
+                    <p className="text-xs uppercase tracking-[0.2em] text-primary font-bold">
+                        {user?.role === 'brand' ? 'Brand' : 'Creator'} verification
+                    </p>
+                    <h1 className="mt-2 text-3xl font-bold text-heaven-text">Verification Center</h1>
+                    <p className="mt-3 text-sm text-heaven-muted">
+                        Automated checks validate completeness and file format only. Every application requires a final Admin decision.
+                    </p>
+                    <div className="mt-5 rounded-xl border border-white/10 bg-white/5 p-4">
+                        <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm text-heaven-muted">Current status</span>
+                            <strong className="text-sm text-heaven-text">
+                                {loadingStatus ? 'Loading…' : statusLabels[state.status] || state.status}
+                            </strong>
                         </div>
-                        <h1 className="text-4xl font-black text-heaven-text tracking-tight uppercase">Creator Verification</h1>
-                        <p className="text-heaven-muted mt-4 text-sm font-medium">Establish your identity to unlock the full SaaS engine.</p>
+                        {state.request?.decision_reason && (
+                            <p className="mt-3 text-sm text-heaven-muted">
+                                Admin response: <span className="text-heaven-text">{state.request.decision_reason}</span>
+                            </p>
+                        )}
+                        {state.isSuspended && (
+                            <p className="mt-3 text-sm text-red-300">This account is suspended and cannot submit another application.</p>
+                        )}
                     </div>
+                </header>
 
-                    {renderStatus()}
-                </Card>
-            </motion.div>
+                {canSubmit ? (
+                    <form onSubmit={submit} className="space-y-6">
+                        {user?.role === 'creator' ? (
+                            <>
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <Field label="Full name" value={creator.full_name} onChange={value => setCreatorValue('full_name', value)} required />
+                                    <Field label="Creator niche" value={creator.niche} onChange={value => setCreatorValue('niche', value)} required />
+                                    <Field label="Location" value={creator.location} onChange={value => setCreatorValue('location', value)} required />
+                                    <Field label="Website" value={creator.website} onChange={value => setCreatorValue('website', value)} type="url" />
+                                    <Field label="Portfolio URL" value={creator.portfolio} onChange={value => setCreatorValue('portfolio', value)} type="url" />
+                                </div>
+                                <SocialFields values={creator.social_links} onChange={(key, value) => setSocial('creator', key, value)} />
+                            </>
+                        ) : (
+                            <>
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <Field label="Company name" value={brand.company_name} onChange={value => setBrandValue('company_name', value)} required />
+                                    <Field label="Business email" value={brand.business_email} onChange={value => setBrandValue('business_email', value)} type="email" required />
+                                    <Field label="Company website" value={brand.website} onChange={value => setBrandValue('website', value)} type="url" required />
+                                    <Field label="Industry" value={brand.industry} onChange={value => setBrandValue('industry', value)} required />
+                                    <Field label="Authorized representative" value={brand.representative_name} onChange={value => setBrandValue('representative_name', value)} required />
+                                    <Field label="Location" value={brand.location} onChange={value => setBrandValue('location', value)} />
+                                </div>
+                                <label className="block text-sm text-heaven-muted">
+                                    Company description
+                                    <textarea
+                                        className="mt-2 w-full min-h-28 rounded-xl border border-white/10 bg-black/30 p-3 text-heaven-text"
+                                        value={brand.description}
+                                        onChange={event => setBrandValue('description', event.target.value)}
+                                        required
+                                        maxLength={3000}
+                                    />
+                                </label>
+                                <SocialFields values={brand.social_links} onChange={(key, value) => setSocial('brand', key, value)} />
+                            </>
+                        )}
+                        <label className="block text-sm text-heaven-muted">
+                            Supporting evidence (PDF, JPEG or PNG; up to 10 MB each)
+                            <input
+                                className="mt-2 block w-full text-sm text-heaven-text"
+                                type="file"
+                                accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                                multiple
+                                required
+                                onChange={event => setDocuments(Array.from(event.target.files || []).slice(0, 5))}
+                            />
+                            <span className="mt-1 block text-xs">Creator ownership evidence or Brand business-registration evidence. Files are private and visible to authorized Admin reviewers only.</span>
+                        </label>
+                        <div className="flex flex-wrap gap-3">
+                            <Button type="submit" variant="primary" isLoading={loading}>
+                                Submit for Admin review
+                            </Button>
+                            <Button type="button" variant="secondary" onClick={() => navigate(dashboardPath)}>
+                                Return to dashboard
+                            </Button>
+                        </div>
+                    </form>
+                ) : (
+                    <div className="flex flex-wrap gap-3">
+                        <Button type="button" variant="primary" onClick={() => navigate(dashboardPath)}>
+                            Return to dashboard
+                        </Button>
+                        <Button type="button" variant="secondary" onClick={() => void loadStatus()}>
+                            Refresh status
+                        </Button>
+                    </div>
+                )}
+            </Card>
         </div>
+    );
+}
+
+function Field({
+    label,
+    value,
+    onChange,
+    required = false,
+    type = 'text'
+}: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    required?: boolean;
+    type?: string;
+}) {
+    return (
+        <label className="block text-sm text-heaven-muted">
+            {label}
+            <input
+                className="mt-2 h-12 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-heaven-text"
+                type={type}
+                value={value}
+                onChange={event => onChange(event.target.value)}
+                required={required}
+                maxLength={type === 'url' ? 2048 : 300}
+            />
+        </label>
+    );
+}
+
+function SocialFields({
+    values,
+    onChange
+}: {
+    values: Record<string, string>;
+    onChange: (platform: string, value: string) => void;
+}) {
+    return (
+        <fieldset className="grid gap-4 sm:grid-cols-2">
+            <legend className="mb-3 text-sm font-semibold text-heaven-text">Social profile links (optional)</legend>
+            {Object.entries(values).map(([platform, value]) => (
+                <Field
+                    key={platform}
+                    label={platform[0].toUpperCase() + platform.slice(1)}
+                    value={value}
+                    onChange={next => onChange(platform, next)}
+                    type="url"
+                />
+            ))}
+        </fieldset>
     );
 }

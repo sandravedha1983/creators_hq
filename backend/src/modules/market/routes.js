@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, authorize } = require('../../middleware/auth');
+const { requireVerified } = require('../../middleware/requireVerified');
 const { supabase } = require('../../config/supabase');
 const { createNotification } = require('../notifications/controllers');
 
@@ -136,9 +137,9 @@ router.get('/campaign/:id', async (req, res, next) => {
 });
 
 // ─── Brand: create campaign ───────────────────────────────────────────────────
-router.post('/campaign', authenticate, authorize('brand', 'admin'), async (req, res, next) => {
+router.post('/campaign', authenticate, authorize('brand', 'admin'), requireVerified, async (req, res, next) => {
   try {
-    const { title, description, budget, niche, deliverables, requirements, deadline, image, status } = req.body;
+    const { title, description, budget, niche, deliverables, requirements, deadline, image } = req.body;
     if (!title || !description || !budget) {
       return res.status(400).json({ success: false, message: 'title, description and budget are required' });
     }
@@ -154,7 +155,7 @@ router.post('/campaign', authenticate, authorize('brand', 'admin'), async (req, 
           deliverables: deliverables ? [String(deliverables)] : [],
           deadline: deadline || null,
           image: image || '',
-          status: status || 'open'
+          status: 'open'
         })
         .select()
         .single();
@@ -168,7 +169,7 @@ router.post('/campaign', authenticate, authorize('brand', 'admin'), async (req, 
 });
 
 // ─── Brand: update own campaign ───────────────────────────────────────────────
-router.put('/campaign/:id', authenticate, authorize('brand', 'admin'), async (req, res, next) => {
+router.put('/campaign/:id', authenticate, authorize('brand', 'admin'), requireVerified, async (req, res, next) => {
   try {
     const { data: existing, error: fetchErr } = await req.supabase
         .from('campaigns')
@@ -207,7 +208,7 @@ router.put('/campaign/:id', authenticate, authorize('brand', 'admin'), async (re
 });
 
 // ─── Brand: delete own campaign ───────────────────────────────────────────────
-router.delete('/campaign/:id', authenticate, authorize('brand', 'admin'), async (req, res, next) => {
+router.delete('/campaign/:id', authenticate, authorize('brand', 'admin'), requireVerified, async (req, res, next) => {
   try {
     const { data: existing, error: fetchErr } = await req.supabase
         .from('campaigns')
@@ -233,7 +234,7 @@ router.delete('/campaign/:id', authenticate, authorize('brand', 'admin'), async 
 });
 
 // ─── Creator: apply to campaign ───────────────────────────────────────────────
-router.post('/campaign/:id/apply', authenticate, authorize('creator'), async (req, res, next) => {
+router.post('/campaign/:id/apply', authenticate, authorize('creator'), requireVerified, async (req, res, next) => {
   try {
     const { data: campaign, error: campErr } = await req.supabase
         .from('campaigns')
@@ -327,7 +328,7 @@ router.get('/campaign/:id/applications', authenticate, authorize('brand', 'admin
 });
 
 // ─── Brand: approve / reject an application ───────────────────────────────────
-router.patch('/campaign/:id/application/:appId', authenticate, authorize('brand', 'admin'), async (req, res, next) => {
+router.patch('/campaign/:id/application/:appId', authenticate, authorize('brand', 'admin'), requireVerified, async (req, res, next) => {
   try {
     const { status } = req.body;
     if (!['approved', 'rejected'].includes(status)) {

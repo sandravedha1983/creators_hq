@@ -372,17 +372,19 @@ SELECT extensions.is(
   1::bigint,
   'a trusted app_metadata admin can read private creator fields'
 );
-SELECT extensions.lives_ok(
+SELECT extensions.throws_ok(
   $$UPDATE public.profiles
     SET is_verified = true
     WHERE id = '00000000-0000-0000-0000-000000000103'$$,
-  'a trusted app_metadata admin can update a protected profile field'
+  'P0001',
+  'Privileged verification and account status changes require an explicit service-role operation',
+  'an authenticated admin must use the trusted decision operation to change verification'
 );
 SELECT extensions.is(
   (SELECT is_verified FROM public.profiles
    WHERE id = '00000000-0000-0000-0000-000000000103'),
-  true,
-  'the authorized admin profile update is persisted'
+  false,
+  'a direct admin profile update cannot approve an account'
 );
 SELECT extensions.throws_ok(
   $$UPDATE public.profiles

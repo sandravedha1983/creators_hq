@@ -49,10 +49,10 @@ export default function UsersPage() {
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const handleBlock = async (u) => {
-    setActionLoading(u._id + '_block')
+    setActionLoading(u.id + '_block')
     try {
-      await blockUser(u._id)
-      toast(`User ${u.isBlocked ? 'unblocked' : 'blocked'} successfully`, 'success')
+      await blockUser(u.id)
+      toast(`User ${u.is_blocked ? 'unblocked' : 'blocked'} successfully`, 'success')
       fetchUsers()
     } catch {
       toast('Failed to update user status', 'error')
@@ -61,9 +61,9 @@ export default function UsersPage() {
   }
 
   const handleDelete = async (u) => {
-    setActionLoading(u._id + '_delete')
+    setActionLoading(u.id + '_delete')
     try {
-      await deleteUser(u._id)
+      await deleteUser(u.id)
       toast('User deleted successfully', 'success')
       setConfirmDelete(null)
       fetchUsers()
@@ -89,7 +89,7 @@ export default function UsersPage() {
             { label: 'All Users', value: users.length, color: 'var(--accent-light)' },
             { label: 'Creators', value: users.filter(u => u.role === 'creator').length, color: 'var(--info)' },
             { label: 'Brands', value: users.filter(u => u.role === 'brand').length, color: 'var(--success)' },
-            { label: 'Blocked', value: users.filter(u => u.isBlocked).length, color: 'var(--danger)' },
+            { label: 'Blocked', value: users.filter(u => u.is_blocked).length, color: 'var(--danger)' },
           ].map(s => (
             <div key={s.label} className="stat-card" style={{ padding: '16px 20px' }}>
               <div className="stat-value" style={{ fontSize: 22, color: s.color }}>{s.value}</div>
@@ -153,7 +153,7 @@ export default function UsersPage() {
                 </thead>
                 <tbody>
                   {paginated.map(u => (
-                    <tr key={u._id}>
+                    <tr key={u.id}>
                       <td>
                         <div className="user-cell">
                           <div className="user-avatar" style={{ background: colorFor(u.name) }}>
@@ -177,36 +177,39 @@ export default function UsersPage() {
                       </td>
                       <td>
                         <span className={`badge ${
-                          u.verificationStatus === 'verified' ? 'badge-success' :
-                          u.verificationStatus === 'pending' ? 'badge-warning' :
-                          u.verificationStatus === 'rejected' ? 'badge-danger' :
+                          u.verification_status === 'verified' ? 'badge-success' :
+                          ['pending', 'under_review', 'additional_information_required'].includes(u.verification_status) ? 'badge-warning' :
+                          ['rejected', 'suspended'].includes(u.verification_status) ? 'badge-danger' :
                           'badge-muted'
                         }`}>
-                          {u.verificationStatus || 'not_submitted'}
+                          {u.verification_status || 'not_submitted'}
                         </span>
                       </td>
                       <td>
-                        {u.isBlocked
-                          ? <span className="badge badge-danger"><UserX size={10} /> Blocked</span>
+                        {u.is_suspended
+                          ? <span className="badge badge-danger"><UserX size={10} /> Suspended</span>
+                          : u.is_blocked
+                            ? <span className="badge badge-danger"><UserX size={10} /> Blocked</span>
                           : <span className="badge badge-success"><UserCheck size={10} /> Active</span>
                         }
                       </td>
                       <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-                        {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}
+                        {u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}
                       </td>
                       <td>
                         <div className="actions-cell">
                           <button
-                            className={`btn btn-sm ${u.isBlocked ? 'btn-warning' : 'btn-warning'}`}
+                            className="btn btn-sm btn-warning"
                             onClick={() => handleBlock(u)}
-                            disabled={actionLoading === u._id + '_block'}
-                            title={u.isBlocked ? 'Unblock user' : 'Block user'}
+                            disabled={actionLoading === u.id + '_block' || u.role === 'admin' || u.is_suspended || u.id === undefined}
+                            title={u.is_suspended ? 'Manage verification suspension in the Verification Center' : u.is_blocked ? 'Unblock user' : 'Block user'}
                           >
-                            {actionLoading === u._id + '_block' ? '…' : u.isBlocked ? <><UserCheck size={12} /> Unblock</> : <><UserX size={12} /> Block</>}
+                            {actionLoading === u.id + '_block' ? '…' : u.is_suspended ? 'Suspended' : u.is_blocked ? <><UserCheck size={12} /> Unblock</> : <><UserX size={12} /> Block</>}
                           </button>
                           <button
                             className="btn btn-sm btn-danger"
                             onClick={() => setConfirmDelete(u)}
+                            disabled={u.role === 'admin'}
                             title="Delete user"
                           >
                             <Trash2 size={12} />
@@ -248,10 +251,10 @@ export default function UsersPage() {
               <button
                 className="btn btn-danger"
                 onClick={() => handleDelete(confirmDelete)}
-                disabled={actionLoading === confirmDelete._id + '_delete'}
+                disabled={actionLoading === confirmDelete.id + '_delete'}
               >
                 <Trash2 size={14} />
-                {actionLoading === confirmDelete._id + '_delete' ? 'Deleting…' : 'Delete Permanently'}
+                {actionLoading === confirmDelete.id + '_delete' ? 'Deleting…' : 'Delete Permanently'}
               </button>
             </div>
           </div>

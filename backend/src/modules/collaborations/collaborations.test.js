@@ -154,6 +154,8 @@ afterAll(async () => {
 beforeEach(() => {
   jest.spyOn(console, 'error').mockImplementation(() => {});
   process.env.SUPABASE_URL = 'https://test.supabase.co';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key';
+  process.env.SUPABASE_ANON_KEY = 'test-anon-key';
   collaborationRecord = {
     id: 'collab-test-001',
     sender_id: 'sender-test-001',
@@ -178,15 +180,24 @@ beforeEach(() => {
   mockProfilesById.clear();
   mockProfilesById.set('profile-user-001', profileResult);
   mockProfilesById.set('receiver-test-001', {
-    data: { id: 'receiver-test-001', role: 'creator' },
+    data: {
+      id: 'receiver-test-001', role: 'creator', is_verified: true, is_blocked: false,
+      is_suspended: false, verification_status: 'verified'
+    },
     error: null
   });
   mockProfilesById.set('sender-test-001', {
-    data: { id: 'sender-test-001', role: 'brand' },
+    data: {
+      id: 'sender-test-001', role: 'brand', is_verified: true, is_blocked: false,
+      is_suspended: false, verification_status: 'verified'
+    },
     error: null
   });
   mockProfilesById.set('stranger-test-001', {
-    data: { id: 'stranger-test-001', role: 'creator' },
+    data: {
+      id: 'stranger-test-001', role: 'creator', is_verified: true, is_blocked: false,
+      is_suspended: false, verification_status: 'verified'
+    },
     error: null
   });
   mockUsersByToken.clear();
@@ -234,7 +245,7 @@ beforeEach(() => {
       ? { data: { user }, error: null }
       : { data: null, error: new Error('Invalid test token') };
   });
-  mockCreateUserClient.mockReturnValue({ userScoped: true });
+  mockCreateUserClient.mockReturnValue(mockSupabase);
 });
 
 afterEach(() => {
@@ -593,18 +604,18 @@ describe('authenticate() — profile role and configuration safety', () => {
     });
     const { res, next } = await runAuthentication('Bearer supabase-access-token');
     expect(res.statusCode).toBe(503);
-    expect(res.body.error).toMatch(/SUPABASE_ANON_KEY is required/);
+    expect(res.body.error).toBe('Authentication could not be completed.');
     expect(next).not.toHaveBeenCalled();
   });
 
-  test('does not trust an admin role embedded in a verified legacy JWT', async () => {
+  test('rejects a legacy JWT even when it contains an admin role', async () => {
     const jwt = require('jsonwebtoken');
     process.env.JWT_SECRET = 'test-only-jwt-secret';
     mockSupabase.auth.getUser.mockResolvedValue({ data: null, error: new Error('not a Supabase token') });
     const token = jwt.sign({ id: 'profile-user-001', role: 'admin' }, process.env.JWT_SECRET);
-    const { req, next } = await runAuthentication(`Bearer ${token}`);
-    expect(next).toHaveBeenCalledTimes(1);
-    expect(req.user.role).toBe('creator');
+    const { res, next } = await runAuthentication(`Bearer ${token}`);
+    expect(res.statusCode).toBe(401);
+    expect(next).not.toHaveBeenCalled();
   });
 
   test('ordinary users with client metadata cannot pass admin authorization', async () => {

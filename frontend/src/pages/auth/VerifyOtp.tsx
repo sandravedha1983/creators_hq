@@ -106,6 +106,12 @@ export default function VerifyOtp() {
 
             if (success) {
                 toast.success('Neural Link Established');
+                const roleRedirects: Record<string, string> = {
+                    creator: '/creator-dashboard',
+                    brand: '/brand-dashboard',
+                    admin: '/admin/dashboard'
+                };
+                navigate(roleRedirects[user?.role || 'creator'], { replace: true });
             } else {
                 setIsLoading(false);
                 setError('Security mismatch. The access code provided is invalid or expired.');

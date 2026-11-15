@@ -5,6 +5,8 @@
 **Audit Scope:** Full codebase audit (`backend/`, `frontend/`, `admin/`, database schemas, configuration, security posture, and test suites)  
 **Specification Reference:** Comprehensive V1 Beta Audit Specification (Original DOCX checklist was unavailable in the workspace; this audit was conducted strictly against the verified repository source code and the complete V1 scope specification).
 
+> **Historical snapshot:** This audit documents the pre-Supabase implementation as of October 14, 2026. Its MongoDB, Mongoose, Passport, and custom-auth references are historical, not descriptions of the current application runtime.
+
 ---
 
 ## 1. REPOSITORY ARCHITECTURE

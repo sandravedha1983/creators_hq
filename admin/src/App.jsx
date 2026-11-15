@@ -11,6 +11,7 @@ import CampaignsPage from './pages/CampaignsPage'
 import LeadsPage from './pages/LeadsPage'
 import AnalyticsPage from './pages/AnalyticsPage'
 import SettingsPage from './pages/SettingsPage'
+import VerificationCenterPage from './pages/VerificationCenterPage'
 import { getUsers } from './api'
 
 function ProtectedLayout() {
@@ -33,6 +34,7 @@ function ProtectedLayout() {
         <Routes>
           <Route path="/"              element={<DashboardPage />} />
           <Route path="/users"         element={<UsersPage />} />
+          <Route path="/verification"  element={<VerificationCenterPage />} />
           <Route path="/subscriptions" element={<SubscriptionsPage />} />
           <Route path="/campaigns"     element={<CampaignsPage />} />
           <Route path="/leads"         element={<LeadsPage />} />

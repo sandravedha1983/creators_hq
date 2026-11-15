@@ -12,7 +12,7 @@ export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const { login, isAuthenticated, isVerified, user, signInWithOAuth } = useAuth();
+    const { login, isAuthenticated, user, signInWithOAuth } = useAuth();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
 
@@ -32,7 +32,7 @@ export default function Login() {
     }, []);
 
     useEffect(() => {
-        if (isAuthenticated && isVerified && user) {
+        if (isAuthenticated && user) {
             const roleRedirects: Record<string, string> = {
                 creator: '/creator-dashboard',
                 brand: '/brand-dashboard',
@@ -40,7 +40,7 @@ export default function Login() {
             };
             navigate(roleRedirects[user.role] || '/dashboard', { replace: true });
         }
-    }, [isAuthenticated, isVerified, user, navigate]);
+    }, [isAuthenticated, user, navigate]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();

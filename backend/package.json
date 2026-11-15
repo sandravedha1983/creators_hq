@@ -6,6 +6,8 @@
     "start": "node src/app.js",
     "build": "npm install",
     "dev": "nodemon src/app.js",
+    "admin:provision": "node src/scripts/provision-admin.js",
+    "admin:revoke": "node src/scripts/revoke-admin.js",
     "test": "jest --runInBand --testPathPatterns=collaborations.test"
   },
   "dependencies": {

@@ -89,7 +89,7 @@ function App() {
                         <Route path="/admin-dashboard" element={<Navigate to="/admin/dashboard" replace />} />
 
                         {/* Auth Verification */}
-                        <Route path="/verify-otp" element={<ProtectedRoute><VerifyOtp /></ProtectedRoute>} />
+                        <Route path="/verify-otp" element={<VerifyOtp />} />
                         <Route path="/verify-account" element={<ProtectedRoute><VerificationPage /></ProtectedRoute>} />
 
                         {/* Creator Specific Routes */}
