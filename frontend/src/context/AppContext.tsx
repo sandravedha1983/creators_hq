@@ -11,7 +11,7 @@ interface ContentItem {
   id: string; title: string; platform: string; type: string; status: string; date: string; image?: string;
 }
 interface AutomationRule { id: string; condition: string; action: string; }
-interface Integration { id: string; name: string; category: string; connected: boolean; verified: boolean; icon: string; }
+interface Integration { id: string; name: string; category: string; connected: boolean; verified: boolean; icon: string; status?: string; }
 interface TeamMember { id: string; name: string; email: string; role: string; status: 'Active' | 'Invited'; }
 interface Activity {
   id: string; type: 'system' | 'campaign' | 'message' | 'billing' | 'integration' | 'team' | 'collaboration'; title?: string; message: string; timestamp: string; read: boolean;
@@ -188,7 +188,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return {
           ...integration,
           connected: statuses[platform] === true,
-          verified: statuses.profileVerified?.[platform] === true
+          verified: platform === 'instagram' ? false : statuses.profileVerified?.[platform] === true,
+          status: platform === 'instagram' ? statuses.instagramStatus : undefined
         };
       }));
       setIntegrationsError(null);

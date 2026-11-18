@@ -16,7 +16,7 @@ The primary objective is to systematically migrate CreatorsHQ from a fragmented 
 - **Supabase PostgreSQL** as the primary authoritative data store for all business entities.
 - **Supabase Row Level Security (RLS)** to enforce granular database-level access control.
 - **Supabase Storage** for creator avatars, brand logos, campaign assets, and verification screenshots.
-- **Refined Express Services** dedicated to privileged server-side operations (OpenAI AI Studio proxy, rate-limiting, and webhook listeners) with Supabase JWT authentication middleware.
+- **Refined Express Services** dedicated to privileged server-side operations (Gemini AI Studio proxy, rate-limiting, and webhook listeners) with Supabase JWT authentication middleware.
 
 ---
 

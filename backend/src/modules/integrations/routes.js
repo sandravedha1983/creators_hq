@@ -4,16 +4,19 @@ const { authenticate } = require('../../middleware/auth');
 
 const router = express.Router();
 
-router.use(authenticate);
+router.post('/instagram/start', authenticate, controllers.startInstagramOAuth);
+router.get('/instagram/authorize', controllers.authorizeInstagramOAuth);
+router.get('/instagram/callback', controllers.instagramOAuthCallback);
+router.delete('/instagram', authenticate, controllers.disconnectInstagram);
 
 // Legacy/Generic connect
-router.post('/connect', controllers.connectPlatform);
+router.post('/connect', authenticate, controllers.connectPlatform);
 
 // Unified Social Verification Flow
-router.post('/link', controllers.linkSocial);
-router.post('/verify', controllers.verifySocial);
+router.post('/link', authenticate, controllers.linkSocial);
+router.post('/verify', authenticate, controllers.verifySocial);
 
 // Status
-router.get('/', controllers.getIntegrations);
+router.get('/', authenticate, controllers.getIntegrations);
 
 module.exports = router;

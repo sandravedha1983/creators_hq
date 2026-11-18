@@ -1,6 +1,10 @@
 const { extractUsername, profileUrl, fetchHtml } = require('../../utils/social');
 const cheerio = require('cheerio');
-const axios = require('axios');
+const instagramOAuth = require('./instagramOAuth');
+const {
+  getCookieValue,
+  serializeOAuthStateCookie
+} = require('../auth/oauthState');
 
 const SOCIAL_PLATFORMS = ['instagram', 'twitter', 'linkedin', 'youtube'];
 const CONNECTABLE_PLATFORMS = [...SOCIAL_PLATFORMS, 'slack', 'tiktok'];
@@ -36,6 +40,9 @@ const linkSocial = async (req, res, next) => {
   try {
     const { platform, url } = req.body;
 
+    if (platform === 'instagram') {
+      return res.status(410).json({ success: false, message: 'Connect Instagram with Instagram Login.' });
+    }
     if (!SOCIAL_PLATFORMS.includes(platform) || !url) {
       return res.status(400).json({ success: false, message: "platform and url required" });
     }
@@ -80,6 +87,9 @@ const verifySocial = async (req, res, next) => {
   try {
     const { platform, url, code } = req.body;
 
+    if (platform === 'instagram') {
+      return res.status(410).json({ success: false, verified: false, message: 'Connect Instagram with Instagram Login.' });
+    }
     if (!SOCIAL_PLATFORMS.includes(platform) || !url || typeof code !== 'string' || !code) {
       return res.status(400).json({ success: false, verified: false, message: "platform, url, code required" });
     }
@@ -111,43 +121,20 @@ const verifySocial = async (req, res, next) => {
     let found = false;
     let lookupUnavailable = false;
 
-    // 1. Try Instagram Web Profile API if platform is instagram
-    if (platform === 'instagram') {
-      try {
-        const igRes = await axios.get(`https://www.instagram.com/api/v1/users/web_profile_info/?username=${username}`, {
-          headers: {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-            "x-ig-app-id": "936619743392459"
-          },
-          timeout: 8000
-        });
-        const bio = (igRes.data?.data?.user?.biography || "").toUpperCase();
-        const fullName = (igRes.data?.data?.user?.full_name || "").toUpperCase();
-        if (bio.includes(cleanCode) || fullName.includes(cleanCode)) {
-          found = true;
-        }
-      } catch (igErr) {
-        lookupUnavailable = true;
-      }
-    }
+    try {
+      const html = await fetchHtml(profileUrl(platform, username));
+      if (html) {
+        const $ = cheerio.load(html);
+        const metaDescription = ($('meta[property="og:description"]').attr('content') || "").toUpperCase();
+        const bodyText = (html || "").toUpperCase();
+        const pageTitle = ($('title').text() || "").toUpperCase();
 
-    // 2. HTML Scrape attempt if not found via API
-    if (!found) {
-      try {
-        const html = await fetchHtml(profileUrl(platform, username));
-        if (html) {
-          const $ = cheerio.load(html);
-          const metaDescription = ($('meta[property="og:description"]').attr('content') || "").toUpperCase();
-          const bodyText = (html || "").toUpperCase();
-          const pageTitle = ($('title').text() || "").toUpperCase();
-
-          found = metaDescription.includes(cleanCode) || 
-                  bodyText.includes(cleanCode) || 
-                  pageTitle.includes(cleanCode);
-        }
-      } catch (e) {
-        lookupUnavailable = true;
+        found = metaDescription.includes(cleanCode) ||
+                bodyText.includes(cleanCode) ||
+                pageTitle.includes(cleanCode);
       }
+    } catch (e) {
+      lookupUnavailable = true;
     }
 
     if (!found) {
@@ -189,14 +176,24 @@ const getIntegrations = async (req, res, next) => {
   try {
     const user = await getIntegrationUser(req.user.id, req.supabase);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    const instagram = await instagramOAuth.getConnectionStatus(req.user.id);
 
     const profileVerified = Object.fromEntries(SOCIAL_PLATFORMS.map(platform => [
       platform,
-      user.socials?.[platform]?.verified === true
+      platform === 'instagram' ? false : user.socials?.[platform]?.verified === true
     ]));
     const connected = Object.fromEntries(CONNECTABLE_PLATFORMS.map(platform => [platform, false]));
 
-    res.json({ success: true, data: { ...connected, profileVerified } });
+    res.json({
+      success: true,
+      data: {
+        ...connected,
+        instagram: instagram.status === 'connected',
+        instagramStatus: instagram.status,
+        instagramUsername: instagram.username,
+        profileVerified
+      }
+    });
   } catch (error) {
     next(error);
   }
@@ -207,6 +204,13 @@ const connectPlatform = async (req, res, next) => {
     const { platform } = req.body;
     if (!CONNECTABLE_PLATFORMS.includes(platform)) {
       return res.status(400).json({ success: false, message: 'Unsupported integration platform.' });
+    }
+
+    if (platform === 'instagram') {
+      return res.status(400).json({
+        success: false,
+        message: 'Start Instagram Login with /instagram/start.'
+      });
     }
 
     if (SOCIAL_PLATFORMS.includes(platform)) {
@@ -225,4 +229,110 @@ const connectPlatform = async (req, res, next) => {
   }
 };
 
-module.exports = { linkSocial, verifySocial, getIntegrations, connectPlatform };
+const instagramBindingCookie = 'creatorshq_instagram_oauth_binding';
+const frontendIntegrationsUrl = () => {
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  return `${frontendUrl.replace(/\/+$/, '')}/integrations`;
+};
+const clearInstagramBindingCookie = res => {
+  res.append('Set-Cookie', serializeOAuthStateCookie('', {
+    cookieName: instagramBindingCookie,
+    path: '/api/integrations/instagram',
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+    maxAge: 0
+  }));
+};
+const instagramResultRedirect = result => `${frontendIntegrationsUrl()}?instagram=${result}`;
+
+const startInstagramOAuth = async (req, res, next) => {
+  try {
+    const attempt = await instagramOAuth.createOAuthAttempt(req.user.id);
+    res.append('Set-Cookie', serializeOAuthStateCookie(attempt.bindingSecret, {
+      cookieName: instagramBindingCookie,
+      path: '/api/integrations/instagram',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+      maxAge: 600
+    }));
+    return res.json({ success: true, authorizationUrl: attempt.authorizationUrl });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const authorizeInstagramOAuth = async (req, res, next) => {
+  try {
+    const state = typeof req.query?.state === 'string' ? req.query.state : '';
+    const binding = getCookieValue(req.headers.cookie || '', instagramBindingCookie);
+    if (!await instagramOAuth.isPendingOAuthAttempt(state, binding)) {
+      await instagramOAuth.discardOAuthAttempt(binding);
+      clearInstagramBindingCookie(res);
+      return res.redirect(instagramResultRedirect('error'));
+    }
+    return res.redirect(instagramOAuth.buildAuthorizationUrl(state));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const instagramOAuthCallback = async (req, res) => {
+  const state = typeof req.query?.state === 'string' ? req.query.state : '';
+  const binding = getCookieValue(req.headers.cookie || '', instagramBindingCookie);
+  clearInstagramBindingCookie(res);
+  let userId = null;
+
+  try {
+    const attempt = await instagramOAuth.consumeOAuthAttempt(state, binding);
+    if (!attempt) {
+      await instagramOAuth.discardOAuthAttempt(binding);
+      return res.redirect(instagramResultRedirect('error'));
+    }
+    userId = attempt.user_id;
+    if (typeof req.query?.error === 'string') {
+      if (req.query.error === 'access_denied') {
+        return res.redirect(instagramResultRedirect('cancelled'));
+      }
+      await instagramOAuth.updateConnectionStatus(attempt.user_id, 'error');
+      return res.redirect(instagramResultRedirect('error'));
+    }
+    if (typeof req.query?.code !== 'string') {
+      await instagramOAuth.updateConnectionStatus(attempt.user_id, 'error');
+      return res.redirect(instagramResultRedirect('error'));
+    }
+
+    const connection = await instagramOAuth.exchangeAuthorizationCode(req.query.code);
+    await instagramOAuth.persistConnection(attempt.user_id, connection);
+    return res.redirect(instagramResultRedirect('connected'));
+  } catch {
+    if (userId) {
+      try {
+        await instagramOAuth.updateConnectionStatus(userId, 'error');
+      } catch {
+        console.error('[INSTAGRAM OAUTH] Failed to record callback failure.');
+      }
+    }
+    console.error('[INSTAGRAM OAUTH] Callback failed; provider details were omitted.');
+    return res.redirect(instagramResultRedirect('error'));
+  }
+};
+
+const disconnectInstagram = async (req, res, next) => {
+  try {
+    await instagramOAuth.disconnectConnection(req.user.id);
+    return res.json({ success: true, status: 'disconnected' });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+module.exports = {
+  authorizeInstagramOAuth,
+  connectPlatform,
+  disconnectInstagram,
+  getIntegrations,
+  instagramOAuthCallback,
+  linkSocial,
+  startInstagramOAuth,
+  verifySocial
+};

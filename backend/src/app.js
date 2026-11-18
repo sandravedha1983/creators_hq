@@ -48,7 +48,7 @@ app.use(express.json());
 
 app.use((req, res, next) => {
     if (process.env.NODE_ENV !== 'production') {
-        console.log("API HIT:", req.method, req.url);
+        console.log("API HIT:", req.method, req.path);
     }
     next();
 });

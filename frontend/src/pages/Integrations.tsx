@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import {
@@ -13,13 +13,15 @@ import { toast } from 'react-hot-toast';
 import { Spinner } from "@/components/ui/Spinner";
 import API from '@/services/api';
 import { isAxiosError } from 'axios';
+import { useSearchParams } from 'react-router-dom';
 
-type IntegrationStatus = 'connected' | 'verified' | 'pending' | 'offline';
+type IntegrationStatus = 'connected' | 'verified' | 'pending' | 'offline' | 'connecting' | 'expired' | 'reconnect_required' | 'error';
 
 export default function Integrations() {
-    const { integrations, integrationsLoading, integrationsError, toggleIntegration } = useAppContext();
+    const { integrations, integrationsLoading, integrationsError, toggleIntegration, refreshIntegrations } = useAppContext();
     const [isSyncing, setIsSyncing] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const [searchParams, setSearchParams] = useSearchParams();
     
     // Modal State
     const [showModal, setShowModal] = useState(false);
@@ -36,7 +38,43 @@ export default function Integrations() {
     // Pending status tracking (linked but not verified)
     const [pendingPlatforms, setPendingPlatforms] = useState<Set<string>>(new Set());
 
+    useEffect(() => {
+        const oauthResult = searchParams.get('instagram');
+        if (!oauthResult) return;
+        setSearchParams(params => {
+            params.delete('instagram');
+            return params;
+        }, { replace: true });
+
+        void (async () => {
+            try {
+                await refreshIntegrations();
+                if (oauthResult === 'connected') {
+                    const response = await API.get('/api/integrations');
+                    if (response.data?.data?.instagramStatus === 'connected') {
+                        toast.success('Instagram connected successfully.');
+                    } else {
+                        toast.error('Instagram connection could not be confirmed.');
+                    }
+                } else if (oauthResult === 'cancelled') {
+                    toast('Instagram connection was cancelled.');
+                } else {
+                    toast.error('Instagram connection did not complete. Try connecting again.');
+                }
+            } catch {
+                toast.error('Instagram connection status could not be checked.');
+            }
+        })();
+    }, [searchParams, setSearchParams, refreshIntegrations]);
+
     const getStatus = (integration: any): IntegrationStatus => {
+        if (integration.name.toLowerCase() === 'instagram' && integration.status) {
+            if (integration.status === 'disconnected') return 'offline';
+            if (['connected', 'connecting', 'expired', 'reconnect_required', 'error'].includes(integration.status)) {
+                return integration.status as IntegrationStatus;
+            }
+            return 'offline';
+        }
         if (integration.connected) return 'connected';
         if (integration.verified) return 'verified';
         if (pendingPlatforms.has(integration.name.toLowerCase())) return 'pending';
@@ -48,6 +86,10 @@ export default function Integrations() {
             case 'connected': return 'Connected';
             case 'verified': return 'Profile Verified';
             case 'pending': return 'Pending';
+            case 'connecting': return 'Connecting';
+            case 'expired': return 'Expired';
+            case 'reconnect_required': return 'Reconnect Required';
+            case 'error': return 'Connection Error';
             case 'offline': return 'Offline';
         }
     };
@@ -57,13 +99,42 @@ export default function Integrations() {
             case 'connected': return 'border-primary/20 bg-primary/10 text-primary';
             case 'verified': return 'border-sky-500/20 bg-sky-500/10 text-sky-300';
             case 'pending': return 'border-amber-500/20 bg-amber-500/10 text-amber-400';
+            case 'connecting': return 'border-amber-500/20 bg-amber-500/10 text-amber-400';
+            case 'expired':
+            case 'reconnect_required':
+            case 'error': return 'border-rose-500/20 bg-rose-500/10 text-rose-300';
             case 'offline': return 'border-white/5 text-heaven-muted/40';
         }
     };
 
     const handleToggle = async (id: string, name: string, isConnected: boolean) => {
         const platform = name.toLowerCase();
-        const manualPlatforms = ['instagram', 'youtube', 'linkedin', 'twitter'];
+        if (platform === 'instagram') {
+            setIsSyncing(id);
+            try {
+                if (isConnected) {
+                    await API.delete('/api/integrations/instagram');
+                    await refreshIntegrations();
+                    toast.success('Instagram disconnected.');
+                    setIsSyncing(null);
+                } else {
+                    const response = await API.post('/api/integrations/instagram/start', {}, { withCredentials: true });
+                    if (typeof response.data?.authorizationUrl !== 'string') {
+                        throw new Error('Instagram authorization could not be started.');
+                    }
+                    window.location.assign(response.data.authorizationUrl);
+                }
+            } catch (error) {
+                const responseMessage = isAxiosError<{ message?: string }>(error)
+                    ? error.response?.data?.message
+                    : undefined;
+                toast.error(responseMessage || (error instanceof Error ? error.message : 'Unable to connect Instagram.'));
+                setIsSyncing(null);
+            }
+            return;
+        }
+
+        const manualPlatforms = ['youtube', 'linkedin', 'twitter'];
 
         if (manualPlatforms.includes(platform) && !isConnected) {
             setActivePlatform(platform);
@@ -218,7 +289,8 @@ export default function Integrations() {
                         <Card className={cn(
                             "p-10 border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl rounded-[3rem] transition-all duration-700 group",
                             status === 'connected' ? "shadow-glass border-primary/20" : 
-                            status === 'pending' ? "shadow-glass border-amber-500/15" : "opacity-50"
+                            ['pending', 'connecting'].includes(status) ? "shadow-glass border-amber-500/15" :
+                            ['expired', 'reconnect_required', 'error'].includes(status) ? "shadow-glass border-rose-500/15" : "opacity-50"
                         )}>
                             <div className="flex items-start justify-between mb-12">
                                 <div className={cn(
@@ -244,13 +316,16 @@ export default function Integrations() {
 
                             <Button
                                 onClick={() => handleToggle(integration.id, integration.name, integration.connected)}
-                                disabled={!!isSyncing || integrationsLoading || status === 'verified'}
+                                disabled={!!isSyncing || integrationsLoading || status === 'verified' || status === 'connecting'}
                                 variant={integration.connected ? "ghost" : "primary"}
                                 className="w-full h-14 rounded-2xl font-bold text-[10px] uppercase tracking-widest"
                             >
                                 {isSyncing === integration.id || integrationsLoading
                                     ? <RefreshCw className="w-4 h-4 animate-spin" />
-                                    : status === 'verified' ? 'Profile Verified' : (integration.connected ? 'Disconnect' : 'Connect')}
+                                    : status === 'verified' ? 'Profile Verified'
+                                    : status === 'connecting' ? 'Connecting'
+                                    : integration.connected ? 'Disconnect'
+                                    : ['expired', 'reconnect_required', 'error'].includes(status) ? 'Reconnect' : 'Connect'}
                             </Button>
                         </Card>
                     </motion.div>

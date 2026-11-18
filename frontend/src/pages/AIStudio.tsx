@@ -61,7 +61,8 @@ export default function AIStudio() {
             const res = await API.post('/api/ai/content', { prompt, type: apiType });
             if (res.data.success) {
                 setResult(res.data.data);
-                toast.success('Intelligence generated successfully.');
+                if (res.data.warning) toast.error(res.data.warning);
+                else toast.success('Intelligence generated successfully.');
                 // Refresh usage counter
                 const usageRes = await getAiUsage();
                 setUsage(usageRes.data);
@@ -73,7 +74,7 @@ export default function AIStudio() {
                     ? 'Monthly limit reached. Upgrade to Pro for unlimited access.'
                     : 'Monthly generation limit reached.');
             } else {
-                toast.error('Failed to generate content.');
+                toast.error(err.response?.data?.message || 'Failed to generate content.');
             }
         } finally {
             setIsLoading(false);
@@ -85,8 +86,13 @@ export default function AIStudio() {
         setChatLoading(true);
         try {
             const res = await API.post('/api/ai/chat', { message: chatMessage });
-            if (res.data.success) setChatReply(res.data.reply);
-        } catch { toast.error('Failed to get response from Growth Assistant.'); }
+            if (res.data.success) {
+                setChatReply(res.data.reply);
+                if (res.data.warning) toast.error(res.data.warning);
+            }
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Failed to get response from Growth Assistant.');
+        }
         finally { setChatLoading(false); }
     };
 

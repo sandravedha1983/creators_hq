@@ -1,8 +1,8 @@
-const OpenAI = require('openai');
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const { GoogleGenAI } = require('@google/genai');
 
 const FREE_MONTHLY_LIMIT = 5;
+const GEMINI_MODEL = 'gemini-3.5-flash-lite';
+const GEMINI_TIMEOUT_MS = 30000;
 
 // ─── Helper: count this month's generations for a user ───────────────────────
 async function getMonthlyUsage(userId, client) {
@@ -17,21 +17,114 @@ async function getMonthlyUsage(userId, client) {
   return count || 0;
 }
 
-// ─── Helper: generate via OpenAI with fallback ────────────────────────────────
-async function callOpenAI(systemPrompt, userPrompt, model = 'gpt-4o-mini') {
-  if (!process.env.OPENAI_API_KEY) throw new Error('no_key');
-  const response = await openai.chat.completions.create({
-    model,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt }
-    ],
-    max_tokens: 600
-  });
+function getGeminiFailure(error) {
+  const code = String(error?.code || error?.cause?.code || '').toUpperCase();
+  const message = [error?.message, error?.cause?.message].filter(Boolean).join(' ').toLowerCase();
+  const status = Number(error?.status || error?.statusCode || error?.response?.status || error?.cause?.status);
+
+  if (code === 'AI_KEY_MISSING') {
+    return {
+      code: 'AI_NOT_CONFIGURED',
+      message: 'AI generation is not configured on the server. Please contact support.'
+    };
+  }
+  if (
+    status === 429 ||
+    status === 402 ||
+    code.includes('RESOURCE_EXHAUSTED') ||
+    message.includes('resource exhausted') ||
+    message.includes('quota')
+  ) {
+    return {
+      code: 'AI_RATE_LIMITED',
+      message: 'AI service quota or rate limit reached. Please try again later.'
+    };
+  }
+  if (
+    status === 401 ||
+    status === 403 ||
+    code.includes('API_KEY_INVALID') ||
+    message.includes('api key not valid') ||
+    message.includes('invalid api key')
+  ) {
+    return {
+      code: 'AI_AUTHENTICATION_FAILED',
+      message: 'AI service authentication failed. Please contact support.'
+    };
+  }
+  if (
+    status === 408 ||
+    code.includes('TIMEOUT') ||
+    code === 'ETIMEDOUT' ||
+    code === 'ECONNABORTED' ||
+    error?.name === 'AbortError' ||
+    message.includes('timed out') ||
+    message.includes('timeout')
+  ) {
+    return {
+      code: 'AI_TIMEOUT',
+      message: 'The AI service took too long to respond. Please try again.'
+    };
+  }
+  if (
+    status >= 500 ||
+    ['ECONNRESET', 'ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN']
+      .some(networkCode => code.includes(networkCode))
+  ) {
+    return {
+      code: 'AI_UNAVAILABLE',
+      message: 'The AI service is temporarily unavailable. Please try again later.'
+    };
+  }
+  if (code === 'AI_EMPTY_RESPONSE') {
+    return {
+      code: 'AI_EMPTY_RESPONSE',
+      message: 'The AI service returned an empty response. Please try again.'
+    };
+  }
   return {
-    output: response.choices[0].message.content,
-    tokens: response.usage?.total_tokens || 0
+    code: 'AI_PROVIDER_ERROR',
+    message: 'AI generation failed. A basic template is shown instead.'
   };
+}
+
+// ─── Helper: generate text with Gemini ──────────────────────────────────────
+async function callGemini(systemPrompt, userPrompt) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || !apiKey.trim()) {
+    const error = new Error('Gemini API key is not configured');
+    error.code = 'AI_KEY_MISSING';
+    throw error;
+  }
+
+  const ai = new GoogleGenAI({
+    apiKey,
+    httpOptions: { timeout: GEMINI_TIMEOUT_MS }
+  });
+  const response = await ai.interactions.create({
+    model: GEMINI_MODEL,
+    input: userPrompt,
+    system_instruction: systemPrompt,
+    generation_config: { max_output_tokens: 600 }
+  });
+
+  const output = typeof response?.output_text === 'string' ? response.output_text.trim() : '';
+  if (!output) {
+    const error = new Error('Gemini returned no text');
+    error.code = 'AI_EMPTY_RESPONSE';
+    throw error;
+  }
+
+  return {
+    output,
+    tokens: Number.isFinite(response?.usage?.total_tokens) ? response.usage.total_tokens : 0
+  };
+}
+
+function getFallbackWarning(error) {
+  const failure = getGeminiFailure(error);
+  console.warn(`[AI] Gemini request failed: ${failure.code}`);
+  return failure.message;
 }
 
 // ─── GET /api/ai/usage — return current usage count ──────────────────────────
@@ -91,14 +184,15 @@ const generateContent = async (req, res, next) => {
       default: `Strategy for "${prompt}": Focus on consistency over perfection. Post 4–5× per week, engage with your top commenters daily, and use carousel posts for maximum saves.`
     };
 
-    let output, tokens;
+    let output, tokens, warning;
     try {
-      const result = await callOpenAI(systemPrompt, userPrompt);
+      const result = await callGemini(systemPrompt, userPrompt);
       output = result.output;
       tokens = result.tokens;
-    } catch {
+    } catch (error) {
       output = FALLBACKS[normalizedType] || FALLBACKS[type] || FALLBACKS.default;
       tokens = 0;
+      warning = getFallbackWarning(error);
     }
 
     // Save to DB for history and usage tracking
@@ -108,11 +202,11 @@ const generateContent = async (req, res, next) => {
       prompt,
       output,
       tokens_used: tokens,
-      model: 'gpt-4o-mini'
+      model: GEMINI_MODEL
     });
     if (saveError) throw saveError;
 
-    res.json({ success: true, data: output });
+    res.json({ success: true, data: output, ...(warning && { warning }) });
   } catch (err) {
     next(err);
   }
@@ -126,13 +220,14 @@ const getGrowthSuggestions = async (req, res, next) => {
 
     let data;
     try {
-      const result = await callOpenAI(
+      const result = await callGemini(
         'You are an AI growth analyst for social media creators.',
         `Based on this data: ${JSON.stringify(profileData)}, give 3 actionable growth tips.`
       );
       data = result.output;
-    } catch {
+    } catch (error) {
       data = FALLBACK;
+      return res.json({ success: true, data, warning: getFallbackWarning(error) });
     }
 
     res.json({ success: true, data });
@@ -153,19 +248,19 @@ const chat = async (req, res, next) => {
       `Strategy for "${message}": Use a 70/20/10 content split — 70% Value, 20% Engagement, 10% Promotion.`
     ];
 
-    let reply;
+    let reply, warning;
     try {
-      const result = await callOpenAI(
+      const result = await callGemini(
         'You are CreatorsHQ AI (Crea), a growth strategist for content creators. Give short, viral, and highly actionable advice.',
-        message,
-        'gpt-4o-mini'
+        message
       );
       reply = result.output;
-    } catch {
+    } catch (error) {
       reply = FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
+      warning = getFallbackWarning(error);
     }
 
-    res.json({ success: true, reply });
+    res.json({ success: true, reply, ...(warning && { warning }) });
   } catch (err) {
     next(err);
   }
