@@ -1,13 +1,12 @@
-const { extractUsername, profileUrl, fetchHtml } = require('../../utils/social');
-const cheerio = require('cheerio');
+const { extractUsername } = require('../../utils/social');
 const instagramOAuth = require('./instagramOAuth');
 const {
   getCookieValue,
   serializeOAuthStateCookie
 } = require('../auth/oauthState');
 
-const SOCIAL_PLATFORMS = ['instagram', 'twitter', 'linkedin', 'youtube'];
-const CONNECTABLE_PLATFORMS = [...SOCIAL_PLATFORMS, 'slack', 'tiktok'];
+const PROFILE_LINK_PLATFORMS = ['linkedin', 'youtube', 'facebook'];
+const CONNECTABLE_PLATFORMS = ['instagram', ...PROFILE_LINK_PLATFORMS, 'twitter', 'slack', 'tiktok'];
 
 const getIntegrationUser = async (userId, client) => {
   const { data, error } = await client
@@ -34,16 +33,13 @@ const asObject = (value) => {
 
 /**
  * POST /api/integrations/link
- * Generates a code and links a social profile without verifying.
+ * Saves a public social profile URL without ownership verification.
  */
 const linkSocial = async (req, res, next) => {
   try {
     const { platform, url } = req.body;
 
-    if (platform === 'instagram') {
-      return res.status(410).json({ success: false, message: 'Connect Instagram with Instagram Login.' });
-    }
-    if (!SOCIAL_PLATFORMS.includes(platform) || !url) {
+    if (!PROFILE_LINK_PLATFORMS.includes(platform) || !url) {
       return res.status(400).json({ success: false, message: "platform and url required" });
     }
 
@@ -51,8 +47,6 @@ const linkSocial = async (req, res, next) => {
     if (!username) {
       return res.status(400).json({ success: false, message: "Invalid profile URL" });
     }
-
-    const code = "CRHQ_" + Math.random().toString(36).slice(2, 7).toUpperCase();
 
     const user = await getIntegrationUser(req.user.id, req.supabase);
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
@@ -62,107 +56,33 @@ const linkSocial = async (req, res, next) => {
     user.socials[platform] = {
       url,
       username,
-      code,
-      verified: false // ALWAYS false initially
+      linkedAt: new Date()
     };
 
     await saveIntegrationUser(req.user.id, user, req.supabase);
 
     return res.json({
       success: true,
-      verified: false,
-      code,
-      message: `Linked @${username}. Add code to bio, then verify.`
+      linked: true,
+      message: `${platform} profile linked.`
     });
   } catch (error) {
     next(error);
   }
 };
 
-/**
- * POST /api/integrations/verify
- * Scrapes the profile to find the verification code.
- */
-const verifySocial = async (req, res, next) => {
+const disconnectSocial = async (req, res, next) => {
   try {
-    const { platform, url, code } = req.body;
-
-    if (platform === 'instagram') {
-      return res.status(410).json({ success: false, verified: false, message: 'Connect Instagram with Instagram Login.' });
+    const { platform } = req.params;
+    if (!PROFILE_LINK_PLATFORMS.includes(platform)) {
+      return res.status(400).json({ success: false, message: 'Unsupported profile platform.' });
     }
-    if (!SOCIAL_PLATFORMS.includes(platform) || !url || typeof code !== 'string' || !code) {
-      return res.status(400).json({ success: false, verified: false, message: "platform, url, code required" });
-    }
-
-    const username = extractUsername(url, platform);
-    if (!username) {
-      return res.status(400).json({ success: false, verified: false, message: "Invalid profile URL" });
-    }
-
     const user = await getIntegrationUser(req.user.id, req.supabase);
-    if (!user) return res.status(404).json({ success: false, verified: false, message: "User not found" });
-    const record = user.socials ? user.socials[platform] : null;
-
-    if (!record || record.username !== username) {
-      return res.status(400).json({ success: false, verified: false, message: "Link first before verifying" });
-    }
-
-    // Security check: ensure the code provided matches what we assigned
-    if (record.code !== code) {
-       return res.status(400).json({ success: false, verified: false, message: "Verification code mismatch" });
-    }
-
-    // Idempotent success
-    if (record.verified === true) {
-      return res.json({ success: true, verified: true, message: "Already verified" });
-    }
-
-    const cleanCode = code.trim().toUpperCase();
-    let found = false;
-    let lookupUnavailable = false;
-
-    try {
-      const html = await fetchHtml(profileUrl(platform, username));
-      if (html) {
-        const $ = cheerio.load(html);
-        const metaDescription = ($('meta[property="og:description"]').attr('content') || "").toUpperCase();
-        const bodyText = (html || "").toUpperCase();
-        const pageTitle = ($('title').text() || "").toUpperCase();
-
-        found = metaDescription.includes(cleanCode) ||
-                bodyText.includes(cleanCode) ||
-                pageTitle.includes(cleanCode);
-      }
-    } catch (e) {
-      lookupUnavailable = true;
-    }
-
-    if (!found) {
-      return res.status(lookupUnavailable ? 503 : 400).json({
-        success: false,
-        verified: false,
-        message: lookupUnavailable
-          ? 'The public profile could not be checked. Make sure it is public and try again.'
-          : 'Verification code was not found on the public profile.'
-      });
-    }
-
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     user.socials = asObject(user.socials);
-    record.verified = true;
-    record.verifiedAt = new Date();
-
-    if (user.integrations instanceof Map) {
-      user.integrations.set(platform, true);
-    } else {
-      user.integrations = { ...asObject(user.integrations), [platform]: true };
-    }
+    delete user.socials[platform];
     await saveIntegrationUser(req.user.id, user, req.supabase);
-
-    return res.json({
-      success: true,
-      verified: true,
-      message: "Verification successful! Ownership confirmed."
-    });
+    return res.json({ success: true, linked: false });
   } catch (error) {
     next(error);
   }
@@ -178,11 +98,10 @@ const getIntegrations = async (req, res, next) => {
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     const instagram = await instagramOAuth.getConnectionStatus(req.user.id);
 
-    const profileVerified = Object.fromEntries(SOCIAL_PLATFORMS.map(platform => [
-      platform,
-      platform === 'instagram' ? false : user.socials?.[platform]?.verified === true
-    ]));
     const connected = Object.fromEntries(CONNECTABLE_PLATFORMS.map(platform => [platform, false]));
+    for (const platform of PROFILE_LINK_PLATFORMS) {
+      connected[platform] = typeof user.socials?.[platform]?.url === 'string';
+    }
 
     res.json({
       success: true,
@@ -190,8 +109,7 @@ const getIntegrations = async (req, res, next) => {
         ...connected,
         instagram: instagram.status === 'connected',
         instagramStatus: instagram.status,
-        instagramUsername: instagram.username,
-        profileVerified
+        instagramUsername: instagram.username
       }
     });
   } catch (error) {
@@ -213,10 +131,10 @@ const connectPlatform = async (req, res, next) => {
       });
     }
 
-    if (SOCIAL_PLATFORMS.includes(platform)) {
+    if (PROFILE_LINK_PLATFORMS.includes(platform)) {
       return res.status(400).json({
         success: false,
-        message: `${platform} requires manual bio-verification via /link and /verify.`
+        message: `${platform} must be linked with a public profile URL.`
       });
     }
 
@@ -329,10 +247,10 @@ const disconnectInstagram = async (req, res, next) => {
 module.exports = {
   authorizeInstagramOAuth,
   connectPlatform,
+  disconnectSocial,
   disconnectInstagram,
   getIntegrations,
   instagramOAuthCallback,
   linkSocial,
-  startInstagramOAuth,
-  verifySocial
+  startInstagramOAuth
 };

@@ -45,7 +45,7 @@ export interface GrowthScoreData {
     website: boolean;
     avatar: boolean;
     goals: boolean;
-    verifiedSocials: string[];
+    linkedSocials: string[];
     followers: number;
     insufficientData: boolean;
     message?: string;

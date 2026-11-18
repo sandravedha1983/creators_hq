@@ -11,7 +11,7 @@ interface ContentItem {
   id: string; title: string; platform: string; type: string; status: string; date: string; image?: string;
 }
 interface AutomationRule { id: string; condition: string; action: string; }
-interface Integration { id: string; name: string; category: string; connected: boolean; verified: boolean; icon: string; status?: string; }
+interface Integration { id: string; name: string; category: string; connected: boolean; icon: string; status?: string; }
 interface TeamMember { id: string; name: string; email: string; role: string; status: 'Active' | 'Invited'; }
 interface Activity {
   id: string; type: 'system' | 'campaign' | 'message' | 'billing' | 'integration' | 'team' | 'collaboration'; title?: string; message: string; timestamp: string; read: boolean;
@@ -40,7 +40,7 @@ interface AppContextType {
   integrationsLoading: boolean;
   integrationsError: string | null;
   team: TeamMember[];
-  connections: { instagram: string; youtube: string; tiktok: string; linkedin: string; slack: string };
+  connections: { instagram: string; youtube: string; tiktok: string; linkedin: string; facebook: string; slack: string };
   isAnyConnected: boolean;
   addContent: (item: Omit<ContentItem, 'id' | 'date'>) => void;
   addRule: (rule: Omit<AutomationRule, 'id'>) => void;
@@ -58,11 +58,12 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const INITIAL_INTEGRATIONS: Integration[] = [
-  { id: '1', name: 'Instagram', category: 'Social', connected: false, verified: false, icon: 'Instagram' },
-  { id: '2', name: 'YouTube', category: 'Social', connected: false, verified: false, icon: 'Youtube' },
-  { id: '3', name: 'TikTok', category: 'Social', connected: false, verified: false, icon: 'Music2' },
-  { id: '4', name: 'LinkedIn', category: 'Professional', connected: false, verified: false, icon: 'Linkedin' },
-  { id: '5', name: 'Slack', category: 'Communication', connected: false, verified: false, icon: 'Slack' },
+  { id: '1', name: 'Instagram', category: 'Social', connected: false, icon: 'Instagram' },
+  { id: '2', name: 'YouTube', category: 'Social', connected: false, icon: 'Youtube' },
+  { id: '3', name: 'TikTok', category: 'Social', connected: false, icon: 'Music2' },
+  { id: '4', name: 'LinkedIn', category: 'Professional', connected: false, icon: 'Linkedin' },
+  { id: '5', name: 'Facebook', category: 'Social', connected: false, icon: 'Facebook' },
+  { id: '6', name: 'Slack', category: 'Communication', connected: false, icon: 'Slack' },
 ];
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -109,6 +110,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     youtube: integrations.find(i => i.name === 'YouTube')?.connected ? 'connected' : 'offline',
     tiktok: integrations.find(i => i.name === 'TikTok')?.connected ? 'connected' : 'offline',
     linkedin: integrations.find(i => i.name === 'LinkedIn')?.connected ? 'connected' : 'offline',
+    facebook: integrations.find(i => i.name === 'Facebook')?.connected ? 'connected' : 'offline',
     slack: integrations.find(i => i.name === 'Slack')?.connected ? 'connected' : 'offline',
   };
   const isAnyConnected = integrations.some(i => i.connected);
@@ -188,7 +190,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return {
           ...integration,
           connected: statuses[platform] === true,
-          verified: platform === 'instagram' ? false : statuses.profileVerified?.[platform] === true,
           status: platform === 'instagram' ? statuses.instagramStatus : undefined
         };
       }));
@@ -197,8 +198,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (await stillCurrentUser()) {
         setIntegrations(prev => prev.map(integration => ({
           ...integration,
-          connected: false,
-          verified: false
+          connected: false
         })));
         setIntegrationsError(error instanceof Error ? error.message : 'Integration status could not be loaded.');
       }

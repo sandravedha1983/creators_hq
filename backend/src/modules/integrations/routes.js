@@ -12,9 +12,8 @@ router.delete('/instagram', authenticate, controllers.disconnectInstagram);
 // Legacy/Generic connect
 router.post('/connect', authenticate, controllers.connectPlatform);
 
-// Unified Social Verification Flow
 router.post('/link', authenticate, controllers.linkSocial);
-router.post('/verify', authenticate, controllers.verifySocial);
+router.delete('/link/:platform', authenticate, controllers.disconnectSocial);
 
 // Status
 router.get('/', authenticate, controllers.getIntegrations);

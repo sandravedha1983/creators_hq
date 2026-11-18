@@ -11,8 +11,8 @@ const calcGrowthScore = (profile, account) => {
   if (profile.portfolio && profile.portfolio.length > 0) score += 10;
 
   const socials = account?.socials || {};
-  ['instagram', 'youtube', 'twitter', 'linkedin'].forEach(platform => {
-    if (socials[platform]?.verified) score += 7.5;
+  ['instagram', 'youtube', 'twitter', 'linkedin', 'facebook'].forEach(platform => {
+    if (socials[platform]?.url) score += 7.5;
   });
 
   const followers = Number(profile.followers) || 0;
@@ -172,7 +172,8 @@ const getGrowthScore = async (req, res, next) => {
       avatar: !!(profile.avatar || account.avatar),
       goals: !!profile.goals,
       hasPortfolio: profile.portfolio && profile.portfolio.length > 0,
-      verifiedSocials: ['instagram', 'youtube', 'twitter', 'linkedin'].filter(platform => account.socials?.[platform]?.verified),
+      linkedSocials: ['instagram', 'youtube', 'twitter', 'linkedin', 'facebook']
+        .filter(platform => account.socials?.[platform]?.url),
       followers: profile.followers,
       insufficientData: score === 0
     };

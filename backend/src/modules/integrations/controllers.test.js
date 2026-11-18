@@ -1,7 +1,5 @@
 jest.mock('../../utils/social', () => ({
-  extractUsername: jest.fn(() => 'creator'),
-  profileUrl: jest.fn(() => 'https://www.instagram.com/creator/'),
-  fetchHtml: jest.fn()
+  extractUsername: jest.fn(() => 'creator')
 }));
 
 jest.mock('./instagramOAuth', () => ({
@@ -17,7 +15,7 @@ jest.mock('./instagramOAuth', () => ({
   disconnectConnection: jest.fn()
 }));
 
-const { extractUsername, fetchHtml } = require('../../utils/social');
+const { extractUsername } = require('../../utils/social');
 const instagramOAuth = require('./instagramOAuth');
 const {
   authorizeInstagramOAuth,
@@ -25,12 +23,13 @@ const {
   getIntegrations,
   instagramOAuthCallback,
   linkSocial,
-  verifySocial
+  disconnectSocial
 } = require('./controllers');
 
 const createRequest = (profile, body = {}) => {
   const query = {
     select: jest.fn().mockReturnThis(),
+    update: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
     maybeSingle: jest.fn().mockResolvedValue({ data: profile, error: null })
   };
@@ -39,6 +38,7 @@ const createRequest = (profile, body = {}) => {
     body,
     headers: {},
     query: {},
+    params: {},
     supabase: { from: jest.fn().mockReturnValue(query) },
     queryBuilder: query
   };
@@ -48,7 +48,7 @@ describe('Instagram OAuth integration controllers', () => {
   let response;
   const profile = () => ({
     id: 'a7dc831e-c6d3-4412-873c-80be1b10d234',
-    socials: { instagram: { username: 'legacy', verified: true } },
+    socials: { instagram: { username: 'legacy' } },
     integrations: { instagram: true }
   });
 
@@ -62,25 +62,57 @@ describe('Instagram OAuth integration controllers', () => {
     };
   });
 
-  it('rejects legacy Instagram bio linking and verification without scraping', async () => {
+  it('rejects manual profile linking for Instagram, which uses OAuth', async () => {
     const request = createRequest(profile(), {
       platform: 'instagram',
-      url: 'https://www.instagram.com/creator/',
-      code: 'CRHQ_TEST'
+      url: 'https://www.instagram.com/creator/'
     });
 
     await linkSocial(request, response, jest.fn());
-    await verifySocial(request, response, jest.fn());
 
-    expect(response.status).toHaveBeenNthCalledWith(1, 410);
-    expect(response.status).toHaveBeenNthCalledWith(2, 410);
-    expect(fetchHtml).not.toHaveBeenCalled();
+    expect(response.status).toHaveBeenCalledWith(400);
     expect(extractUsername).not.toHaveBeenCalled();
   });
 
-  it('does not expose a legacy verification flag as an Instagram OAuth connection', async () => {
+  it('links supported social profile URLs without generating verification codes', async () => {
+    const request = createRequest(profile(), {
+      platform: 'linkedin',
+      url: 'https://www.linkedin.com/in/creator/'
+    });
+
+    await linkSocial(request, response, jest.fn());
+
+    expect(request.queryBuilder.update).toHaveBeenCalledWith(expect.objectContaining({
+      socials: expect.objectContaining({
+        linkedin: expect.objectContaining({
+          url: 'https://www.linkedin.com/in/creator/',
+          username: 'creator'
+        })
+      })
+    }));
+    expect(request.queryBuilder.update.mock.calls[0][0].socials.linkedin).not.toHaveProperty('code');
+    expect(response.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, linked: true }));
+  });
+
+  it('disconnects a linked profile for the authenticated user', async () => {
+    const user = profile();
+    user.socials.youtube = { url: 'https://www.youtube.com/@creator', username: 'creator' };
+    const request = createRequest(user);
+    request.params.platform = 'youtube';
+
+    await disconnectSocial(request, response, jest.fn());
+
+    expect(request.queryBuilder.update).toHaveBeenCalledWith(expect.objectContaining({
+      socials: expect.not.objectContaining({ youtube: expect.anything() })
+    }));
+    expect(response.json).toHaveBeenCalledWith({ success: true, linked: false });
+  });
+
+  it('returns linked profile status without a verification flag', async () => {
     instagramOAuth.getConnectionStatus.mockResolvedValue({ status: 'disconnected', username: null });
-    const request = createRequest(profile());
+    const user = profile();
+    user.socials.youtube = { url: 'https://www.youtube.com/@creator', username: 'creator' };
+    const request = createRequest(user);
 
     await getIntegrations(request, response, jest.fn());
 
@@ -90,9 +122,11 @@ describe('Instagram OAuth integration controllers', () => {
         instagram: false,
         instagramStatus: 'disconnected',
         instagramUsername: null,
-        profileVerified: expect.objectContaining({ instagram: false })
+        youtube: true,
+        linkedin: false
       })
     });
+    expect(response.json.mock.calls[0][0].data).not.toHaveProperty('profileVerified');
   });
 
   it('starts OAuth for the authenticated Supabase UUID and sets a browser-bound cookie', async () => {

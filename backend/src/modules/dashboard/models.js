@@ -1,3 +1,5 @@
+const instagramOAuth = require('../integrations/instagramOAuth');
+
 const Dashboard = {
   async getBrandStats(brandId, client) {
     const { data: campaigns, error: campaignsError } = await client
@@ -53,7 +55,9 @@ const Dashboard = {
     if (applicationsError) throw applicationsError;
 
     const instagramSocial = profile.socials?.instagram || {};
-    const isConnected = instagramSocial.verified === true;
+    const instagramIntegration = await instagramOAuth.getConnectionStatus(creatorId);
+    const isConnected = instagramIntegration.status === 'connected';
+    const instagramUsername = instagramIntegration.username || instagramSocial.username || creatorProfile?.username || null;
     const earnings = transactions.reduce((sum, transaction) => sum + (Number(transaction.amount) || 0), 0);
 
     return {
@@ -67,8 +71,8 @@ const Dashboard = {
       growthScore: creatorProfile?.growth_score || 0,
       activeApplications: activeApplications || 0,
       instagram: {
-        username: instagramSocial.username || creatorProfile?.username || null,
-        profileLink: instagramSocial.url || creatorProfile?.website || null,
+        username: instagramUsername,
+        profileLink: instagramSocial.url || (instagramUsername ? `https://www.instagram.com/${instagramUsername}/` : creatorProfile?.website || null),
         followers: creatorProfile?.followers || 0,
         engagementRate: creatorProfile?.engagement_rate || 0,
         isConnected
